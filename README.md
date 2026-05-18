@@ -1,14 +1,14 @@
 # ⚡ Master Dev Hub
 
-A premium, high-performance developer catalog featuring **1,524 AI Tools** and **1,767 Developer Technologies**. Optimized from a monolithic 7.11 MB HTML file into a dynamic, lazy-loaded **Vite + Vanilla JS** SPA.
+A premium, high-performance developer catalog featuring **2,386 AI Tools** and **1,861 Developer Technologies**. Optimized from a monolithic 7.11 MB HTML file into a dynamic, lazy-loaded **Vite + Vanilla JS** SPA.
 
 ## 📁 Repository Structure
 ```
 master-dev-hub/
 ├── public/
 │   ├── data/                       # Asynchronously lazy-loaded datasets
-│   │   ├── tools-data.js           # 1,524 AI Tools database
-│   │   ├── tech-data.js            # 1,767 Developer Tech database
+│   │   ├── tools-data.js           # 2,386 AI Tools database
+│   │   ├── tech-data.js            # 1,861 Developer Tech database
 │   │   └── search-index.js         # Global search index
 │   ├── favicon.svg                 # Brand icon
 │   └── icons.svg                   # Global vector icon library
