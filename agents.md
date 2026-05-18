@@ -1,7 +1,7 @@
 # Master Dev Hub — Agent Context
 
 ## Overview
-High-performance, production-grade, decomposed developer catalog featuring **1,524 AI Tools** and **1,767 Developer Stacks**. Decomposed from a monolithic 7.11 MB HTML file into a dynamic **Vite + Vanilla JS** application.
+High-performance, production-grade, decomposed developer catalog featuring **1,524 AI Tools** and **1,767 Developer Stacks**. Decomposed from a monolithic 7.11 MB HTML file into a dynamic, lazy-loaded **Vite + Vanilla JS** SPA.
 
 ## Stack
 - **Bundler**: Vite 8+
@@ -13,23 +13,25 @@ High-performance, production-grade, decomposed developer catalog featuring **1,5
 ```
 master-dev-hub/
 ├── public/
-│   ├── data/
-│   │   ├── tools-data.js     ← 1,524 AI Tools database
-│   │   ├── tech-data.js      ← 1,767 Developer Stacks database
-│   │   └── search-index.js   ← Autocomplete search index
-│   ├── favicon.svg
-│   └── icons.svg
+│   ├── data/                       # Asynchronously lazy-loaded datasets
+│   │   ├── tools-data.js           # 1,524 AI Tools database (2.9 MB)
+│   │   ├── tech-data.js            # 1,767 Developer Tech database (2.7 MB)
+│   │   └── search-index.js         # Pre-compiled global search index (1.3 MB)
+│   ├── favicon.svg                 # Brand icon
+│   └── icons.svg                   # Global vector icon library
 ├── src/
-│   ├── styles/
-│   │   ├── hub-shell.css     ← Global brand, navigation, autocomplete triggers
-│   │   └── tools-tech.css    ← View grids, category sidebar, comparison drawer, modal panels
-│   ├── dataLoader.js         ← Asynchronous script loading controller
-│   ├── main.js               ← Main router, global search, and tab orchestration
-│   ├── tools.js              ← AI Tools directory controller and grid builder
-│   └── tech.js               ← Tech Stack directory controller and grid builder
-├── index.html                ← Single SPA shell node mounts
-├── vite.config.js            ← Production build assets compiler config
-└── README.md                 ← Technical gains, structure, and operations documentation
+│   ├── styles/                     # Modularized Vanilla CSS styles
+│   │   ├── hub-shell.css           # Global header, layout, global search
+│   │   ├── tools-tech.css          # Cards, sidebar tabs, filter matrices, modal popovers
+│   │   └── main.css                # Aggregate stylesheet entry point
+│   ├── dataLoader.js               # Dynamically loads and caches the public/data/ files
+│   ├── tools.js                    # AI Tools tab controller and favorites logic
+│   ├── tech.js                     # Tech Stack tab controller and filtering logic
+│   └── main.js                     # Main global search, routing, and hotkeys orchestrator
+├── index.html                      # Clean structure with structural DOM nodes
+├── vite.config.js                  # Custom Vite relative paths build configurations
+├── package.json                    # Dev server script commands and dependencies
+└── README.md                       # Simplified repository documentation
 ```
 
 ## How to Run / Build / Test
@@ -46,16 +48,17 @@ None. Fully client-side SPA.
 
 ## Agent-Specific Notes
 
-### Layout & Scrolling Gotchas (Critical)
-- **Html/Body Constraints**: `html` and `body` must maintain `height: 100%; min-height: 100%;` to resolve page shell layout percentages.
-- **Scroll Container**: `#tools-section` and `#tech-section` act as the viewport scroll containers.
-- **Group Clipping Warning**: **Never** apply `content-visibility: auto` or `contain-intrinsic-size` to `.group-block` elements. It causes browser scroll containers to miscalculate heights, breaking smooth scrollbars and clipping elements.
-- **Page Bottom Spacing**: Keep `.page-shell` bottom padding at `80px` to give lists breathing room and clear any floating UI components (like the comparison drawer or back-to-top button).
+### What to avoid
+- **Never edit production files** in `/dist` directly. Always make edits in `/src` or `/public/data` and run `npm run build`.
+- **Never use `content-visibility: auto`** or `contain-intrinsic-size` on `.group-block` elements in `tools-tech.css`. It causes browser scroll containers to miscalculate heights, breaking smooth scrollbars and clipping elements.
+- **Never use `repeat(4, minmax(320px, 1fr))`** for `.tool-grid` columns under `@media(min-width: 1200px)`. It forces overflow in the 4th column card (WooCommerce) on 1200px-1600px viewports. Always use `repeat(4, minmax(0, 1fr))`.
+- **Never use TailwindCSS** or add dynamic Tailwind dependencies unless explicitly requested. Only standard, highly-curated HSL Vanilla CSS is allowed.
 
-### Grid Columns Layout (Critical)
-- Under `@media(min-width: 1200px)`, the `.tool-grid` columns **must** be styled as `repeat(4, minmax(0, 1fr))`. 
-- **Never** use `repeat(4, minmax(320px, 1fr))` as it forces the grid to overflow the available workspace container when the sidebar is present on 1200px-1600px screens, causing the 4th column card (WooCommerce) to be half-hidden.
+### Sensitive areas
+- **Favicon URLs Helper** (`src/tools.js` line 314): The s2 API requires `&default=404` to fail cleanly, rather than returning the generic Google globe. Changing or removing this parameter will break the visual quality and trigger mechanisms.
+- **Global Error Listener** (`src/main.js` line 8): Captures image errors from both `.tool-favicon` and `.td-sim-favicon` grids to generate premium gradient-based avatars. Changes to this selector logic will cause broken icons to display.
 
-### Favicon & Logos Loading Fallback (Critical)
-- **Google Favicon API Integration**: Google s2 API is appended with `&default=404` parameter. This triggers a `404` HTTP status if no custom favicon exists, instead of returning an ugly generic globe image.
-- **Premium CSS Letter Avatars**: `src/main.js` registers a global capturing `'error'` event listener. When both Google s2 and DuckDuckGo favicon APIs fail (or are blocked offline), it instantly replaces the broken `<img>` element with a beautiful, color-harmonized, gradient-based `<div>` letter avatar derived repeatably from the tool's name.
+### Known gotchas
+- **Capturing Error Handler**: The `'error'` event does not bubble in the DOM. Therefore, the global error listener in `src/main.js` must be registered with **capturing enabled** (`true` as the 3rd parameter) to successfully intercept failed images inside lazy-loaded cards.
+- **Layout Height Propagation**: `html` and `body` must maintain `height: 100%; min-height: 100%;` in `tools-tech.css` to allow percentage heights of child scrollbars to resolve properly.
+- **CORS Bypass Loader**: Databases are structured as standalone JS scripts loaded via dynamic `<script>` tag injection rather than `fetch` requests. This completely bypasses standard local `file://` scheme CORS blocks during offline or raw testing.
