@@ -1,0 +1,923 @@
+
+window.initTools = async function() {
+
+  const DATA = await DataLoader.loadData('data/tools-data.js', '__TOOLS_DATA__');
+  const categories = DATA.categories;
+  const tools = DATA.tools;
+  // Normalize optional arrays once so incomplete records cannot break rendering/search.
+  tools.forEach(function(t){
+    t.tags = Array.isArray(t.tags) ? t.tags : [];
+    t.placements = Array.isArray(t.placements) ? t.placements : [];
+    t.platforms = Array.isArray(t.platforms) ? t.platforms : [];
+    t.keyFeatures = Array.isArray(t.keyFeatures) ? t.keyFeatures : [];
+    t.integrations = Array.isArray(t.integrations) ? t.integrations : [];
+    t.alternativeIds = Array.isArray(t.alternativeIds) ? t.alternativeIds : [];
+  });
+  // Pre-compute search haystacks once at init - avoids rebuilding on every keystroke
+  tools.forEach(function(t){
+    t._haystack = [t.name, t.domain, t.description||'', t.pricing||'', t.tags.join(' '), t.placements.map(function(p){return p.category||'';}).join(' ')].join(' ').toLowerCase();
+  });
+  // Pre-compute similarity graph once at init - avoids O(n^2) on every detail open
+  const similarityMap = new Map();
+  (function(){
+    tools.forEach(function(tool){
+      var tTags = new Set(tool.tags);
+      var tCats = new Set(tool.placements.map(function(p){return p.tabId;}).filter(function(id){return id!=='tab-0';}));
+      var scored = tools
+        .filter(function(t){return t.id!==tool.id;})
+        .map(function(t){return {id:t.id,score:t.tags.filter(function(tag){return tTags.has(tag);}).length*2+t.placements.filter(function(p){return tCats.has(p.tabId);}).length};})
+        .filter(function(x){return x.score>0;})
+        .sort(function(a,b){return b.score-a.score;})
+        .slice(0,6);
+      similarityMap.set(tool.id, scored.map(function(x){return x.id;}));
+    });
+  })();
+
+  const els = {
+    tabs: document.getElementById('tools-tabs'),
+    content: document.getElementById('tools-content'),
+    resetFilters: document.getElementById('tools-resetFilters'),
+    categorySearch: document.getElementById('tools-categorySearch'),
+    categorySummary: document.getElementById('tools-categorySummary'),
+    clearSaved: document.getElementById('tools-clearSaved'),
+    categoryTitle: document.getElementById('tools-categoryTitle'),
+    categorySubtitle: document.getElementById('tools-categorySubtitle'),
+    exportCsv: document.getElementById('tools-exportCsv'),
+    exportSaved: document.getElementById('tools-exportSaved'),
+    compareBar: document.getElementById('tools-compareBar'),
+    compareItems: document.getElementById('tools-compareItems'),
+    compareAction: document.getElementById('tools-compareAction'),
+    compareClear: document.getElementById('tools-compareClear'),
+    compareModal: document.getElementById('tools-compareModal'),
+    compareModalContent: document.getElementById('tools-compareModalContent'),
+    modalClose: document.getElementById('tools-modalClose'),
+    toolDetailModal: document.getElementById('tools-toolDetailModal'),
+    tdClose: document.getElementById('tools-tdClose'),
+    tdFavicon: document.getElementById('tools-tdFavicon'),
+    tdName: document.getElementById('tools-tdName'),
+    tdUrlLink: document.getElementById('tools-tdUrlLink'),
+    tdBody: document.getElementById('tools-tdBody'),
+
+    recentStrip: document.getElementById('tools-recentStrip'),
+    shareToast: document.getElementById('tools-shareToast'),
+  };
+
+  const FAVORITES_KEY    = 'master_tools_favorites_v2';
+  const RECENT_KEY       = 'master_tools_recent_v1';
+  const DENSITY_KEY      = 'master_tools_density_v1';
+
+  const CARD_PAGE_SIZE      = 60;
+  let activeTab = 'tab-0';
+  let categoryQuery = '';
+  let activeGroup = 'all';
+  let sortMode = 'recommended';
+  let advancedOpen = false;
+  let advFilters = {pricing:'all', platform:'all', user:'all', availability:'all', status:'all'};
+  let renderedTools = [];
+  let searchQuery = '';
+  let selectedCompare = new Set();
+  let lastToolFocus = null;
+  let currentDensity = 'default';
+  try { currentDensity = localStorage.getItem(DENSITY_KEY) || 'default'; } catch(e) {}
+
+  function getRecent(){ try{ return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]'); }catch(e){ return []; } }
+  function addRecent(id){ let r=getRecent().filter(x=>x!==id); r.unshift(id); localStorage.setItem(RECENT_KEY,JSON.stringify(r.slice(0,8))); }
+
+  function renderRecentStrip(){
+    const ids = getRecent();
+    const rt  = ids.map(id=>tools.find(t=>t.id===id)).filter(Boolean);
+    if(!rt.length){ els.recentStrip.classList.add('hidden'); return; }
+    els.recentStrip.classList.remove('hidden');
+    els.recentStrip.innerHTML =
+      "<span class='recent-label'>Recently viewed</span>" +
+      "<div class='recent-chips'>" +
+        rt.map(t=>"<button class='recent-chip' data-id='"+escapeHtml(t.id)+"' type='button'>"+escapeHtml(t.name)+"</button>").join('') +
+      "</div>" +
+      "<button class='recent-clear' type='button'>✕ Clear</button>";
+      }
+
+  function applyDensity(d){
+    currentDensity=d;
+    localStorage.setItem(DENSITY_KEY,d);
+    document.querySelectorAll('.tool-grid').forEach(g=>{ g.classList.remove('density-compact','density-comfortable'); if(d!=='default') g.classList.add('density-'+d); });
+    document.querySelectorAll('.density-btn').forEach(b=>b.classList.toggle('active',b.dataset.density===d));
+  }
+
+  function showToast(msg){ els.shareToast.textContent=msg; els.shareToast.classList.add('show'); setTimeout(()=>els.shareToast.classList.remove('show'),2000); }
+
+  function scrollSectionTop(){
+    const sec = document.getElementById('tools-section');
+    if (sec) sec.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+
+  function fallbackCopy(text, cb){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly','');
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (cb) cb();
+    } catch(e) { /* swallow */ }
+  }
+
+  function escapeHtml(value){
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+  function normalize(value){ return String(value ?? '').toLowerCase().trim(); }
+  function getFavorites(){
+    try { return new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); }
+    catch(e) { return new Set(); }
+  }
+  function saveFavorites(set){ localStorage.setItem(FAVORITES_KEY, JSON.stringify([...set])); }
+  let favorites = getFavorites();
+
+  function getToolCategories(tool){
+    return [...new Set(tool.placements.map(p => p.category).filter(Boolean))];
+  }
+    function searchHaystack(tool){ return tool._haystack || ''; }
+  function toolInTab(tool, tabId){
+    if(tabId === 'tab-0') return true;
+    return tool.placements.some(p => p.tabId === tabId);
+  }
+  function getPrimaryGroup(tool, tabId){
+    if(tabId === 'tab-0'){
+      const nonMaster = tool.placements.find(p => p.category && p.category !== 'Master List');
+      return nonMaster ? nonMaster.category : 'General';
+    }
+    const p = tool.placements.find(p => p.tabId === tabId);
+    return p?.group || 'General';
+  }
+  function getCurrentCategory(){
+    return categories.find(c => c.id === activeTab) || categories[0];
+  }
+
+
+  function getCurrentGroups(items){
+    if(activeTab === 'tab-0') return [];
+    const groups = new Map();
+    items.forEach(tool => {
+      const g = getPrimaryGroup(tool, activeTab);
+      if(!g || g === 'General') return;
+      groups.set(g, (groups.get(g) || 0) + 1);
+    });
+    return [...groups.entries()].sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }
+
+  function getToolDisplayTags(tool){
+    const nonMaster = tool.placements.find(p => p.tabId !== 'tab-0') || {};
+    const candidates = [];
+    if(tool.pricing && !/^unknown$/i.test(String(tool.pricing))) candidates.push({label: tool.pricing, cls: 'pricing-' + String(tool.pricing).replace(/\s+/g,'-')});
+    (tool.tags || []).forEach(tag => candidates.push({label: tag, cls: 'tool-tag'}));
+    (tool.platforms || []).filter(p => !/^web$/i.test(p)).slice(0,2).forEach(p => candidates.push({label: p, cls: 'platform-tag'}));
+    const seen = new Set();
+    return candidates.filter(item => {
+      const key = String(item.label || '').toLowerCase();
+      if(!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0,5);
+  }
+
+  function uniqueValues(items, getter, limit){
+    const counts = new Map();
+    items.forEach(item => {
+      const vals = getter(item) || [];
+      vals.forEach(v => { if(v) counts.set(v, (counts.get(v)||0)+1); });
+    });
+    return [...counts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0, limit || 12).map(x=>x[0]);
+  }
+
+  function renderFilterControls(baseItems){
+    const groups = getCurrentGroups(baseItems);
+    const hasGroups = activeTab !== 'tab-0' && groups.length > 1;
+    const platforms = uniqueValues(baseItems, t => (t.platforms || []).filter(p => !/^web$/i.test(p)), 10);
+    const users = uniqueValues(baseItems, t => t.target_user || [], 10);
+    const groupHtml = hasGroups ? `
+      <div class="filter-row group-filter-row" aria-label="Groups">
+        <button class="group-chip ${activeGroup === 'all' ? 'active' : ''}" data-group="all" type="button">All groups</button>
+        ${groups.map(([g,count]) => `<button class="group-chip ${activeGroup === g ? 'active' : ''}" data-group="${escapeHtml(g)}" type="button">${escapeHtml(g)} <span>${count}</span></button>`).join('')}
+      </div>` : '';
+    return `
+      <div class="category-filter-panel">
+        <div class="filter-main-row">
+          <div class="filter-title-block">
+            <span class="filter-kicker">Browse</span>
+            <strong>${escapeHtml(getCurrentCategory().label)}</strong>
+          </div>
+          <label class="compact-select-label">Sort
+            <select class="compact-select" data-control="sort">
+              <option value="recommended" ${sortMode==='recommended'?'selected':''}>Recommended</option>
+              <option value="popular" ${sortMode==='popular'?'selected':''}>Popular</option>
+              <option value="verified" ${sortMode==='verified'?'selected':''}>Recently verified</option>
+              <option value="az" ${sortMode==='az'?'selected':''}>A-Z</option>
+            </select>
+          </label>
+          <button class="more-filters-toggle" type="button" aria-expanded="${advancedOpen?'true':'false'}">More filters</button>
+        </div>
+        ${groupHtml}
+        <div class="advanced-filter-panel ${advancedOpen ? 'active' : ''}">
+          <label>Pricing<select data-filter="pricing"><option value="all">All</option>${['Free','Freemium','Paid','Enterprise','Open Source'].map(v=>`<option value="${v}" ${advFilters.pricing===v?'selected':''}>${v}</option>`).join('')}</select></label>
+          <label>Platform<select data-filter="platform"><option value="all">All</option>${platforms.map(v=>`<option value="${escapeHtml(v)}" ${advFilters.platform===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+          <label>User<select data-filter="user"><option value="all">All</option>${users.map(v=>`<option value="${escapeHtml(v)}" ${advFilters.user===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+          <label>Availability<select data-filter="availability"><option value="all">All</option><option value="free" ${advFilters.availability==='free'?'selected':''}>Has free plan</option><option value="open_source" ${advFilters.availability==='open_source'?'selected':''}>Open source</option><option value="api" ${advFilters.availability==='api'?'selected':''}>API available</option></select></label>
+          <label>Status<select data-filter="status"><option value="all">All</option>${['active','unknown','deprecated','acquired','closed'].map(v=>`<option value="${v}" ${advFilters.status===v?'selected':''}>${v}</option>`).join('')}</select></label>
+          <button class="filter-clear-btn" type="button">Clear filters</button>
+        </div>
+      </div>`;
+  }
+
+  function passAdvancedFilters(tool){
+    if(advFilters.pricing !== 'all' && tool.pricing !== advFilters.pricing) return false;
+    if(advFilters.platform !== 'all' && !(tool.platforms || []).includes(advFilters.platform)) return false;
+    if(advFilters.user !== 'all' && !(tool.target_user || []).includes(advFilters.user)) return false;
+    if(advFilters.status !== 'all' && tool.status !== advFilters.status) return false;
+    if(advFilters.availability === 'free' && tool.has_free_plan !== true) return false;
+    if(advFilters.availability === 'open_source' && !(tool.open_source === true || tool.openSource === true)) return false;
+    if(advFilters.availability === 'api' && tool.api_available !== true) return false;
+    return true;
+  }
+
+
+  function resetFilters(){
+    activeTab = 'tab-0';
+    activeGroup = 'all';
+    searchQuery = '';
+    categoryQuery = '';
+    sortMode = 'recommended';
+    advancedOpen = false;
+    advFilters = {pricing:'all', platform:'all', user:'all', availability:'all', status:'all'};
+    if(els.categorySearch) els.categorySearch.value = '';
+    renderTabs();
+    renderContent();
+    scrollSectionTop();
+  }
+
+  function renderTabs(){
+    const q = normalize(categoryQuery);
+    const visibleCategories = categories.filter(cat => {
+      if(!q) return true;
+      const label = normalize(cat.label || '');
+      return label.includes(q) || String(cat.count || '').includes(q);
+    });
+    if(els.categorySummary){
+      const totalCats = categories.filter(c => c.id !== 'tab-0').length;
+      const shownCats = visibleCategories.filter(c => c.id !== 'tab-0').length;
+      els.categorySummary.innerHTML = '<span>'+shownCats+' of '+totalCats+' categories</span><span>'+tools.length.toLocaleString()+' tools</span>';
+    }
+    if(!visibleCategories.length){
+      els.tabs.innerHTML = '<div class="category-empty">No matching categories.</div>';
+      return;
+    }
+    els.tabs.innerHTML = visibleCategories.map(cat => `
+      <button class="tab-btn ${cat.id === activeTab ? 'active' : ''}" data-tab="${escapeHtml(cat.id)}" role="tab" aria-selected="${cat.id === activeTab ? 'true' : 'false'}" title="${escapeHtml(cat.label)}">
+        <span class="tab-btn-label">${escapeHtml(cat.label)}</span> <span class="tab-count">${cat.count}</span>
+      </button>
+    `).join('');
+  }
+
+  function filterTools(){
+    let filtered = tools.filter(tool => toolInTab(tool, activeTab));
+
+    if(activeGroup !== 'all' && activeTab !== 'tab-0') {
+      filtered = filtered.filter(tool => getPrimaryGroup(tool, activeTab) === activeGroup);
+    }
+
+    filtered = filtered.filter(passAdvancedFilters);
+
+    if(searchQuery){
+      const q = normalize(searchQuery);
+      const words = q.split(/\s+/).filter(Boolean);
+      if(words.length){
+        filtered = filtered.filter(t => {
+          const hay = [t.name, t.domain, t.best_for, t.description, (t.tags||[]).join(' '), t.primary_category, t.primary_group].join(' ').toLowerCase();
+          return words.every(w => hay.includes(w));
+        });
+      }
+    }
+
+    filtered.sort((a,b) => {
+      if(sortMode === 'az') return a.name.localeCompare(b.name);
+      if(sortMode === 'popular') return (Number(b.popularity_score)||0) - (Number(a.popularity_score)||0) || a.name.localeCompare(b.name);
+      if(sortMode === 'verified') return String(b.last_verified||'').localeCompare(String(a.last_verified||'')) || a.name.localeCompare(b.name);
+      const rankDiff = (Number(b.final_rank_score) || 0) - (Number(a.final_rank_score) || 0);
+      return rankDiff || a.name.localeCompare(b.name);
+    });
+
+    return filtered;
+  }
+
+  function faviconUrl(domain, sz){
+    if(!domain) return '';
+    try{ var u=new URL('https://www.google.com/s2/favicons'); u.searchParams.set('domain',domain); u.searchParams.set('sz',String(sz||64)); return u.href; }catch(e){ return ''; }
+  }
+  function ddgFaviconUrl(domain){
+    return 'https://icons.duckduckgo.com/ip3/'+encodeURIComponent(domain)+'.ico';
+  }
+  function getShortDesc(desc){
+    if(!desc) return '';
+    var dot = desc.indexOf('. ');
+    if(dot > 0 && dot < 120) return desc.slice(0, dot + 1);
+    return desc.length > 110 ? desc.slice(0, 110).trimEnd() + '…' : desc;
+  }
+
+  function renderCard(tool){
+    const isFav = favorites.has(tool.id);
+    const isSelected = selectedCompare.has(tool.id);
+    const domain = tool.domain || '';
+    const imgSrc = tool.logoUrl || faviconUrl(domain, 64);
+    const imgFallback = ddgFaviconUrl(domain);
+    const displayTags = getToolDisplayTags(tool);
+    const displayDesc = tool.tagline || getShortDesc(tool.description) || 'No description available.';
+    return `
+      <article class="tool-card" tabindex="0" data-tool-id="${escapeHtml(tool.id)}">
+        <div class="compare-wrap">
+          <input type="checkbox" class="compare-check" aria-label="Compare ${escapeHtml(tool.name)}" title="Add to comparison" ${isSelected ? 'checked' : ''}>
+        </div>
+        <div class="tool-header">
+          <div class="tool-title-row">
+            <img class="tool-favicon" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" data-fallback="${escapeHtml(imgFallback)}">
+            <a class="tool-name" href="${escapeHtml(tool.url || '#')}" target="_blank" rel="noopener">${escapeHtml(tool.name)}</a>
+          </div>
+          <div class="tool-meta">
+            <span class="tool-domain" title="${escapeHtml(domain)}">${escapeHtml(domain)}</span>
+            ${tool.openSource ? '<span class="oss-badge">Open Source</span>' : ''}
+            <button class="favorite-btn ${isFav ? 'active' : ''}" type="button" aria-label="Save ${escapeHtml(tool.name)}"></button>
+          </div>
+        </div>
+        <div class="tool-uc">${escapeHtml(displayDesc)}</div>
+        <div class="tool-tags">
+          ${displayTags.map(item => `<span class="tool-tag ${escapeHtml(item.cls)}">${escapeHtml(item.label)}</span>`).join('')}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderContent(){
+    const baseTools = tools.filter(tool => toolInTab(tool, activeTab));
+    renderedTools = filterTools();
+    const cat = getCurrentCategory();
+    if (els.categoryTitle) els.categoryTitle.textContent = cat.label;
+    if (els.categorySubtitle) els.categorySubtitle.textContent = '';
+    const isFiltered = renderedTools.length !== tools.length;
+    if (window.hubSetResultChip) {
+      const sec = document.getElementById('tools-section');
+      if (sec && sec.classList.contains('active')) {
+        window.hubSetResultChip(isFiltered ? `${renderedTools.length} of ${tools.length} tools` : `${tools.length} AI tools`);
+      }
+    }
+
+    const controlsHtml = renderFilterControls(baseTools);
+
+    if(!renderedTools.length){
+      els.content.innerHTML = controlsHtml + `<div class="no-results"><strong>No matching tools found</strong><span>Try a broader search, reset filters, or switch categories.</span></div>`;
+      return;
+    }
+
+    const groups = new Map();
+    renderedTools.forEach(tool => {
+      const group = getPrimaryGroup(tool, activeTab);
+      if(!groups.has(group)) groups.set(group, []);
+      groups.get(group).push(tool);
+    });
+
+    els.content.innerHTML = controlsHtml + [...groups.entries()].map(([group, groupTools]) => `
+      <section class="group-block">
+        <h3 class="group-heading">${escapeHtml(group)} <span class="group-count">${groupTools.length}</span></h3>
+        <div class="tool-grid">
+          ${groupTools.map(renderCard).join('')}
+        </div>
+      </section>
+    `).join('');
+  }
+
+  function updateCompareBar(){
+    const selected = tools.filter(t => selectedCompare.has(t.id)).slice(0,4);
+    if(selected.length){
+      els.compareBar.classList.add('active');
+      els.compareItems.innerHTML = selected.map(t => `<span class="compare-chip">${escapeHtml(t.name)}</span>`).join('');
+    } else {
+      els.compareBar.classList.remove('active');
+      els.compareItems.innerHTML = '';
+    }
+  }
+
+  function openCompare(){
+    const selected = tools.filter(t => selectedCompare.has(t.id)).slice(0,4);
+    if(selected.length < 2){
+      alert('Select at least 2 tools to compare.');
+      return;
+    }
+    els.compareModalContent.innerHTML = `
+      <table class="compare-table">
+        <thead><tr><th>Field</th>${selected.map(t => `<th>${escapeHtml(t.name)}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${[
+            {label:'Website',raw:true,vals:selected.map(t=>'<a href="'+escapeHtml(t.url)+'\" target="_blank\" rel="noopener">'+escapeHtml(t.domain||t.url)+'</a>')},
+            {label:'Pricing',vals:selected.map(t=>escapeHtml(t.pricing))},
+            {label:'Description',vals:selected.map(t=>escapeHtml(t.description))},
+            {label:'Tags',vals:selected.map(t=>escapeHtml(t.tags.join(', ')))},
+            {label:'Categories',vals:selected.map(t=>escapeHtml(getToolCategories(t).filter(c=>c!=='Master List').join(', ')))}
+          ].map(row=>{
+            const allSame=row.vals.every((v,_,a)=>v===a[0]);
+            const cls=allSame?'cell-match':'cell-diff';
+            return `<tr><th>${row.label}</th>${row.vals.map(v=>`<td class="${cls}">`+v+`</td>`).join('')}</tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+    els.compareModal.classList.add('active');
+  }
+
+
+  function exportToolRows(rows, filename){
+    const csvCell = value => {
+      let str = String(value ?? '');
+      // Prevent CSV-formula injection in Excel/Sheets
+      if (/^[=+\-@\t\r]/.test(str)) str = "'" + str;
+      return '"' + str.replace(/"/g, '""') + '"';
+    };
+    const csv = rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+
+  function getExportRows(list){
+    const rows = [['Tool','URL','Domain','Description','Pricing','Tags','Categories','Best For','Status','Score']];
+    list.forEach(t => rows.push([
+      t.name,
+      t.url,
+      t.domain,
+      t.description,
+      t.pricing,
+      (t.tags || []).join('|'),
+      getToolCategories(t).join('|'),
+      t.best_for || t.tagline || '',
+      t.status || '',
+      t.final_rank_score || ''
+    ]));
+    return rows;
+  }
+
+  function exportCsv(){
+    exportToolRows(getExportRows(renderedTools), 'master-dev-hub-tools-current-view.csv');
+  }
+
+  function exportSaved(){
+    const savedTools = [...favorites]
+      .map(id => tools.find(t => t.id === id))
+      .filter(Boolean)
+      .sort((a,b) => a.name.localeCompare(b.name));
+    if(!savedTools.length){
+      showToast('No saved tools to export');
+      return;
+    }
+    exportToolRows(getExportRows(savedTools), 'master-dev-hub-saved-tools.csv');
+  }
+
+  function openToolDetail(tool, opts){
+    opts = opts || {};
+    if(!opts.preserveFocus) lastToolFocus = document.activeElement;
+    const domain = tool.domain || '';
+    let faviconHost = domain;
+    if(!faviconHost && tool.url){
+      try{ faviconHost = new URL(tool.url).hostname; }catch(e){ faviconHost = ''; }
+    }
+
+    // Header
+    els.tdFavicon.src = faviconUrl(faviconHost, 128);
+    els.tdFavicon.dataset.fallback = ddgFaviconUrl(faviconHost);
+    els.tdFavicon.dataset.tried = '';
+    els.tdName.textContent = tool.name;
+    els.tdUrlLink.href = tool.url || '#';
+    els.tdUrlLink.textContent = domain || tool.url || '';
+
+    // Categories (excluding Master List)
+    const cats = tool.placements
+      .filter(p => p.category && p.category !== 'Master List')
+      .reduce((acc, p) => {
+        const key = p.category;
+        if(!acc.find(x => x.category === key)){
+          acc.push({category: p.category, group: p.group || ''});
+        }
+        return acc;
+      }, []);
+
+    const allTags = [...new Set(tool.tags)].filter(t => t && !/^unknown$/i.test(String(t)));
+    const isFav = favorites.has(tool.id);
+
+    const altIds = tool.alternativeIds && tool.alternativeIds.length ? tool.alternativeIds : [];
+    const altTools = altIds.map(id => tools.find(t => t.id === id)).filter(Boolean).slice(0,6);
+    const similar = altTools.length ? altTools : getSimilarTools(tool, 6);
+
+    els.tdBody.innerHTML = `
+      <div class="td-actions">
+        <a class="td-visit-btn" href="${escapeHtml(tool.url || '#')}" target="_blank" rel="noopener">Visit website ↗</a>
+        <button class="td-fav-btn ${isFav ? 'active' : ''}" id="tdFavBtn" type="button"
+          aria-label="${isFav ? 'Remove from saved' : 'Save tool'}"></button>
+      </div>
+
+      <div class="td-stats-bar">
+        ${tool.pricing && !/^unknown$/i.test(String(tool.pricing)) ? `<span class="td-stat-chip">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M6 4v2.5L7.5 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          ${escapeHtml(tool.pricing)}
+        </span>` : ''}
+        ${cats.length ? `<span class="td-stat-chip">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="2" width="10" height="2" rx="1" fill="currentColor"/><rect x="1" y="5" width="7" height="2" rx="1" fill="currentColor"/><rect x="1" y="8" width="8" height="2" rx="1" fill="currentColor"/></svg>
+          ${cats.length} ${cats.length === 1 ? 'category' : 'categories'}
+        </span>` : ''}
+        ${allTags.length ? `<span class="td-stat-chip">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M1.5 6.5 5 10l5.5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          ${allTags.length} tag${allTags.length !== 1 ? 's' : ''}
+        </span>` : ''}
+        ${domain ? `<span class="td-stat-chip">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M6 1c0 0-2 2-2 5s2 5 2 5M6 1c0 0 2 2 2 5s-2 5-2 5M1 6h10" stroke="currentColor" stroke-width="1.2"/></svg>
+          ${escapeHtml(domain)}
+        </span>` : ''}
+        ${(tool.platforms||[]).length ? (tool.platforms||[]).map(p=>`<span class="td-stat-chip">`+escapeHtml(p)+`</span>`).join('') : ''}
+        ${tool.openSource ? `<span class="td-stat-chip td-oss-chip">Open Source</span>` : ''}      </div>
+
+      ${tool.description ? `
+      <div class="td-section">
+        <span class="td-section-label">About</span>
+        <p class="td-description">${escapeHtml(tool.description)}</p>
+      </div>` : ''}
+
+      ${allTags.length ? `
+      <div class="td-section">
+        <span class="td-section-label">Tags &amp; Capabilities</span>
+        <div class="td-tags-wrap">
+          ${tool.pricing && !/^unknown$/i.test(String(tool.pricing)) ? `<span class="td-tag pricing-${escapeHtml(tool.pricing)}">${escapeHtml(tool.pricing)}</span>` : ''}
+          ${allTags.map(t => `<span class="td-tag">${escapeHtml(t)}</span>`).join('')}
+        </div>
+      </div>` : ''}
+
+      ${(tool.keyFeatures||[]).length ? `
+      <div class="td-section">
+        <span class="td-section-label">Key Features</span>
+        <div class="td-tags-wrap">
+          ${(tool.keyFeatures||[]).map(f=>`<span class="td-tag td-feature-tag">${escapeHtml(f)}</span>`).join('')}
+        </div>
+      </div>` : ''}
+
+      ${(tool.integrations||[]).length ? `
+      <div class="td-section">
+        <span class="td-section-label">Integrations</span>
+        <div class="td-tags-wrap">
+          ${(tool.integrations||[]).map(i=>`<span class="td-tag td-integration-tag">${escapeHtml(i)}</span>`).join('')}
+        </div>
+      </div>` : ''}
+
+      ${cats.length ? `
+      <div class="td-section">
+        <span class="td-section-label">Appears in ${cats.length} ${cats.length === 1 ? 'category' : 'categories'}</span>
+        <div class="td-categories">
+          ${cats.map(c => `
+            <div class="td-category-row">
+              <span class="td-category-name">${escapeHtml(c.category)}</span>
+              ${c.group && c.group !== c.category ? `<span class="td-group-badge">· ${escapeHtml(c.group)}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>` : ''}
+
+      ${similar.length ? `
+      <div class="td-section">
+        <span class="td-section-label">Similar tools (${similar.length})</span>
+        <div class="td-similar-grid">
+          ${similar.map(s => {
+            let simHost = s.domain || '';
+            if(!simHost && s.url){ try{ simHost = new URL(s.url).hostname; }catch(e){} }
+            const simFav = encodeURIComponent(simHost);
+            const simFallback = `https://icons.duckduckgo.com/ip3/${simFav}.ico`;
+            return `
+            <button class="td-similar-card" type="button" data-sim-id="${escapeHtml(s.id)}">
+              <img class="td-sim-favicon" src="https://www.google.com/s2/favicons?domain=${simFav}&sz=32" alt=""
+                data-fallback="${simFallback}">
+              <span class="td-sim-info">
+                <span class="td-sim-name">${escapeHtml(s.name)}</span>
+                ${s.pricing && !/^unknown$/i.test(String(s.pricing)) ? `<span class="td-sim-pricing">${escapeHtml(s.pricing)}</span>` : ''}
+              </span>
+            </button>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+    `;
+
+    document.getElementById('tools-tdFavBtn')?.addEventListener('click', () => {
+      if(favorites.has(tool.id)) favorites.delete(tool.id); else favorites.add(tool.id);
+      saveFavorites(favorites);
+      renderContent();
+      openToolDetail(tool);
+    });
+
+    els.tdBody.querySelectorAll('[data-sim-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const simTool = tools.find(t => t.id === btn.dataset.simId);
+        if(simTool) openToolDetail(simTool);
+      });
+    });
+
+    addRecent(tool.id);
+    if(!opts.fromPopstate){
+      const sp = new URLSearchParams(location.search);
+      sp.set('tool', tool.id);
+      history.pushState({tool: tool.id}, '', location.pathname + '?' + sp.toString() + location.hash);
+    }
+    renderRecentStrip();
+
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'td-share-btn';
+    shareBtn.type = 'button';
+    shareBtn.setAttribute('aria-label', 'Copy link');
+    shareBtn.title = 'Copy link to this tool';
+    shareBtn.textContent = 'Share';
+    shareBtn.addEventListener('click', () => {
+      const url = location.href;
+      const done = () => showToast('Link copied!');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(() => fallbackCopy(url, done));
+      } else {
+        fallbackCopy(url, done);
+      }
+    });
+    const actionsDiv = els.tdBody.querySelector('.td-actions');
+    if(actionsDiv) actionsDiv.appendChild(shareBtn);
+
+    els.toolDetailModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    els.tdClose.focus();
+  }
+
+  function closeToolDetail(opts){
+    opts = opts || {};
+    const wasOpen = els.toolDetailModal.classList.contains('active');
+    els.toolDetailModal.classList.remove('active');
+    document.body.style.overflow = '';
+    if(!opts.fromPopstate){
+      const sp = new URLSearchParams(location.search);
+      sp.delete('tool');
+      const qs = sp.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+    }
+    if(wasOpen && lastToolFocus && typeof lastToolFocus.focus === 'function' && document.contains(lastToolFocus)){
+      try{ lastToolFocus.focus({preventScroll:true}); }catch(e){ try{ lastToolFocus.focus(); }catch(_){} }
+    }
+    if(!opts.keepFocus) lastToolFocus = null;
+  }
+
+  // Delegated card action handlers (replaces per-card binding)
+  els.content.addEventListener('click', e => {
+    const groupBtn = e.target.closest('.group-chip');
+    if(groupBtn){
+      activeGroup = groupBtn.dataset.group || 'all';
+      renderContent();
+      return;
+    }
+    const moreBtn = e.target.closest('.more-filters-toggle');
+    if(moreBtn){
+      advancedOpen = !advancedOpen;
+      renderContent();
+      return;
+    }
+    if(e.target.closest('.filter-clear-btn')){
+      advFilters = {pricing:'all', platform:'all', user:'all', availability:'all', status:'all'};
+      activeGroup = 'all';
+      sortMode = 'recommended';
+      renderContent();
+      return;
+    }
+    const favBtn = e.target.closest('.favorite-btn');
+    if(favBtn){
+      e.preventDefault();
+      e.stopPropagation();
+      const id = favBtn.closest('.tool-card')?.dataset.toolId;
+      if(!id) return;
+      if(favorites.has(id)) favorites.delete(id); else favorites.add(id);
+      saveFavorites(favorites);
+      renderContent();
+      return;
+    }
+    // Open detail panel when clicking a card body (not on the tool-name link or compare checkbox)
+    if(!e.target.closest('.tool-name') && !e.target.closest('.compare-wrap')){
+      const card = e.target.closest('.tool-card');
+      if(card){
+        const tool = tools.find(t => t.id === card.dataset.toolId);
+        if(tool) openToolDetail(tool);
+      }
+    }
+  });
+  els.content.addEventListener('change', e => {
+    const sort = e.target.closest('[data-control="sort"]');
+    if(sort){ sortMode = sort.value || 'recommended'; renderContent(); return; }
+    const filter = e.target.closest('[data-filter]');
+    if(filter){ advFilters[filter.dataset.filter] = filter.value || 'all'; renderContent(); return; }
+    const compareCheck = e.target.closest('.compare-check');
+    if(compareCheck){
+      const id = compareCheck.closest('.tool-card')?.dataset.toolId;
+      if(!id) return;
+      if(e.target.checked) selectedCompare.add(id); else selectedCompare.delete(id);
+      updateCompareBar();
+    }
+  });
+
+  // Events
+  els.tabs.addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    activeTab = btn.dataset.tab;
+    activeGroup = 'all';
+    renderTabs();
+    renderContent();
+    scrollSectionTop();
+  });
+
+  if(els.categorySearch){
+    els.categorySearch.addEventListener('input', function(){
+      categoryQuery = els.categorySearch.value || '';
+      renderTabs();
+    });
+  }
+  els.resetFilters.addEventListener('click', resetFilters);
+  els.clearSaved.addEventListener('click', () => {
+    if(confirm('Clear all saved tools?')) {
+      favorites.clear();
+      saveFavorites(favorites);
+      renderContent();
+    }
+  });
+  if(els.exportSaved) els.exportSaved.addEventListener('click', exportSaved);
+  els.exportCsv.addEventListener('click', exportCsv);
+
+  document.addEventListener('keydown', e => {
+    // Ctrl/Cmd+K now focuses the global nav search instead of the old palette
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const navSearch = document.getElementById('hub-global-search');
+      if (navSearch) { e.preventDefault(); navSearch.focus(); navSearch.select(); }
+    }
+    if(e.key === 'Escape') {
+      els.compareModal.classList.remove('active');
+      closeToolDetail();
+    }
+  });
+
+  els.compareAction.addEventListener('click', openCompare);
+  els.compareClear.addEventListener('click', () => {
+    selectedCompare.clear();
+    updateCompareBar();
+    renderContent();
+  });
+  els.modalClose.addEventListener('click', () => els.compareModal.classList.remove('active'));
+  els.tdClose.addEventListener('click', closeToolDetail);
+  els.toolDetailModal.addEventListener('click', e => { if(e.target === els.toolDetailModal) closeToolDetail(); });
+  els.compareModal.addEventListener('click', e => { if(e.target === els.compareModal) els.compareModal.classList.remove('active'); });
+
+  
+
+  // Density
+  document.querySelectorAll('.density-btn').forEach(btn =>
+    btn.addEventListener('click', ()=> applyDensity(btn.dataset.density))
+  );
+  applyDensity(currentDensity);
+
+  // Search history
+els.recentStrip.addEventListener('click', function(e){
+    const chip = e.target.closest('.recent-chip');
+    if(chip){ const t=tools.find(function(x){return x.id===chip.dataset.id;}); if(t) openToolDetail(t); return; }
+    if(e.target.closest('.recent-clear')){ localStorage.removeItem(RECENT_KEY); renderRecentStrip(); }
+  });
+  // Keyboard nav on cards
+  els.content.addEventListener('keydown', e=>{
+    const card = e.target.closest('.tool-card');
+    if(!card) return;
+    if(e.key==='Enter'||e.key===' '){
+      e.preventDefault();
+      const tool=tools.find(t=>t.id===card.dataset.toolId);
+      if(tool) openToolDetail(tool);
+      return;
+    }
+    if(e.key==='ArrowRight'||e.key==='ArrowDown'){
+      e.preventDefault();
+      const cards=[...els.content.querySelectorAll('.tool-card')];
+      const i=cards.indexOf(card);
+      if(i<cards.length-1) cards[i+1].focus();
+    }
+    if(e.key==='ArrowLeft'||e.key==='ArrowUp'){
+      e.preventDefault();
+      const cards=[...els.content.querySelectorAll('.tool-card')];
+      const i=cards.indexOf(card);
+      if(i>0) cards[i-1].focus();
+    }
+  });
+
+  // Deep-link on load
+  const initToolId = new URLSearchParams(location.search).get('tool');
+  if(initToolId){ const initTool=tools.find(t=>t.id===initToolId); if(initTool) setTimeout(function(){ openToolDetail(initTool, {fromPopstate:true, preserveFocus:true}); },80); }
+
+  window.addEventListener('popstate', function(){
+    const toolId = new URLSearchParams(location.search).get('tool');
+    if(toolId){
+      const tool = tools.find(function(t){ return t.id === toolId; });
+      if(tool) openToolDetail(tool, {fromPopstate:true, preserveFocus:true});
+      return;
+    }
+    if(els.toolDetailModal.classList.contains('active')) closeToolDetail({fromPopstate:true});
+  });
+
+
+
+  document.addEventListener('click', function(e){
+    var action = e.target.closest('[data-footer-action]');
+    if(!action) return;
+    var type = action.getAttribute('data-footer-action');
+    if(type === 'search'){
+      var trigger = document.getElementById('hub-search-trigger');
+      if(trigger) trigger.click();
+      else {
+        var search = document.getElementById('hub-global-search');
+        if(search) search.focus();
+      }
+    }
+    if(type === 'top'){
+      var section = document.getElementById('tools-section') || document.getElementById('tech-section');
+      var active = document.querySelector('.hub-section.active') || section;
+      if(active && active.scrollTo) active.scrollTo({top:0, behavior:'smooth'});
+    }
+  });
+
+  renderRecentStrip();
+  renderTabs();
+  renderContent();
+
+
+
+  const bttBtn = document.getElementById('tools-backToTop');
+  const toolsSectionEl = document.getElementById('tools-section');
+  if (bttBtn && toolsSectionEl) {
+    toolsSectionEl.addEventListener('scroll', function(){
+      bttBtn.classList.toggle('visible', toolsSectionEl.scrollTop > 400);
+    }, {passive: true});
+    bttBtn.addEventListener('click', scrollSectionTop);
+  }
+
+  var footerSummary = document.getElementById('tools-footer-summary');
+  if (footerSummary) {
+    var categoryCount = categories.filter(function(c){ return c.id !== 'tab-0'; }).length;
+    footerSummary.textContent = tools.length.toLocaleString() + ' unique tools across ' + categoryCount + ' curated categories. Category placements are preserved for discovery.';
+  }
+
+
+// postMessage API for hub integration
+window.addEventListener('hub-message', function(e){
+    const msg = e.detail;
+    if(!msg||!msg.type) return;
+    if(msg.type==='refreshChip'){
+      const tabs = document.getElementById('tools-section');
+      if (tabs && tabs.classList.contains('active')) renderContent();
+      return;
+    }
+    if(msg.type==='search'){
+      const next = (msg.query || '').trim();
+      if (next === searchQuery) return;
+      searchQuery = next;
+      renderContent();
+      return;
+    }
+    if(msg.type==='openTool'){
+      const tool = tools.find(function(t){ return t.id === msg.id; });
+      if (tool) openToolDetail(tool);
+      return;
+    }
+    if(msg.type==='selectCategory'){
+      var btn = els.tabs.querySelector('.tab-btn[data-tab="'+msg.id+'"]');
+      if(btn){ btn.click(); scrollSectionTop(); }
+    }
+    if(msg.type==='scrollToItem'){
+      if(msg.category){
+        var tb = els.tabs.querySelector('.tab-btn[data-tab="'+msg.category+'"]');
+        if(tb) tb.click();
+      }
+      requestAnimationFrame(function(){
+        var el = els.content.querySelector('.tool-card[data-tool-id="'+CSS.escape(msg.id)+'"]');
+        if(el){
+          el.scrollIntoView({behavior:'smooth',block:'center'});
+          el.style.outline='2px solid #6366f1';
+          el.style.borderRadius='16px';
+          setTimeout(function(){ el.style.outline=''; },2000);
+        }
+      });
+    }
+});
+
+
+};
