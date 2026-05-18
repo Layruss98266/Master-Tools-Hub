@@ -70,6 +70,8 @@ window.initTools = async function() {
   let activeTab = 'tab-0';
   let categoryQuery = '';
   let activeGroup = 'all';
+  let activePreset = 'all';
+  let presetQuery = '';
   let sortMode = 'recommended';
   let advancedOpen = false;
   let advFilters = {pricing:'all', platform:'all', user:'all', availability:'all', status:'all'};
@@ -156,6 +158,79 @@ window.initTools = async function() {
     return categories.find(c => c.id === activeTab) || categories[0];
   }
 
+  function getItemType(tool){
+    const v = String(tool.itemType || tool.item_type || tool.tool_type || '').toLowerCase();
+    return /website/.test(v) ? 'Website' : 'Tool';
+  }
+
+  function findCategoryByLabel(pattern){
+    const rx = pattern instanceof RegExp ? pattern : new RegExp(String(pattern), 'i');
+    const found = categories.find(c => c.id !== 'tab-0' && rx.test(c.label || ''));
+    return found ? found.id : 'tab-0';
+  }
+
+  const TOOL_PRESETS = [
+    {key:'ai-coding', label:'AI Coding Toolkit', tab:/AI Coding|Dev Tools/i, query:'ai coding developer', sort:'recommended'},
+    {key:'cybersecurity', label:'Cybersecurity Toolkit', tab:/Cybersecurity|Privacy/i, query:'security privacy', sort:'developer'},
+    {key:'marketing', label:'Marketing Growth Stack', tab:'tab-0', query:'marketing growth seo social ads email content crm analytics', sort:'popular'},
+    {key:'startup', label:'Startup Founder Stack', tab:'tab-0', query:'startup founder product launch', sort:'recommended'},
+    {key:'research', label:'Research Stack', tab:/Research|Knowledge/i, query:'research papers knowledge', sort:'recommended'},
+    {key:'remote-jobs', label:'Remote Jobs Stack', tab:/HR|Recruiting/i, query:'remote jobs freelance career', sort:'website'},
+    {key:'free', label:'Free Tools', tab:'tab-0', query:'', sort:'free'},
+    {key:'open-source', label:'Open Source', tab:'tab-0', query:'', sort:'open_source'},
+    {key:'websites', label:'Websites Only', tab:'tab-0', query:'', sort:'website'},
+    {key:'tools', label:'Tools Only', tab:'tab-0', query:'', sort:'tool'}
+  ];
+
+  function renderRecommendedViews(){
+    return `<div class="recommended-panel" aria-label="Recommended views">
+      <div class="recommended-head"><span class="filter-kicker">Start here</span><strong>Recommended views</strong><span>Pick a ready-made lens instead of browsing ${tools.length.toLocaleString()} cards.</span></div>
+      <div class="preset-grid">${TOOL_PRESETS.map(p=>`<button type="button" class="preset-chip ${activePreset===p.key?'active':''}" data-preset="${escapeHtml(p.key)}">${escapeHtml(p.label)}</button>`).join('')}</div>
+    </div>`;
+  }
+
+  function applyToolPreset(key){
+    const preset = TOOL_PRESETS.find(p => p.key === key);
+    if(!preset) return;
+    activePreset = key;
+    activeTab = preset.tab instanceof RegExp ? findCategoryByLabel(preset.tab) : (preset.tab || 'tab-0');
+    activeGroup = 'all';
+    searchQuery = '';
+    presetQuery = preset.query || '';
+    sortMode = preset.sort || 'recommended';
+    advancedOpen = false;
+    advFilters = {pricing:'all', platform:'all', user:'all', availability:'all', status:'all'};
+    if(sortMode === 'free') advFilters.availability = 'free';
+    if(sortMode === 'open_source') advFilters.availability = 'open_source';
+    renderTabs();
+    renderContent();
+    scrollSectionTop();
+  }
+
+  function choiceBadgeHtml(kind){
+    const map = {
+      editor: {cls:'choice-editor', label:"Editor's Choice"},
+      developer: {cls:'choice-dev', label:'Developer Pick'},
+      popular: {cls:'choice-popular', label:'Popular'}
+    };
+    const item = map[String(kind || '').toLowerCase()];
+    return item ? `<span class="choice-badge ${item.cls}">${item.label}</span>` : '';
+  }
+
+  function getChoiceKind(tool){
+    if(tool.choiceLabel || tool.choice_label) return String(tool.choiceLabel || tool.choice_label).toLowerCase();
+    const name = String(tool.name || '').toLowerCase();
+    const cat = String(tool.primary_category || (tool.placements && tool.placements[1] && tool.placements[1].category) || '').toLowerCase();
+    const group = String(tool.primary_group || (tool.placements && tool.placements[1] && tool.placements[1].group) || '').toLowerCase();
+    const hay = [name, cat, group, (tool.tags||[]).join(' ')].join(' ').toLowerCase();
+    const editorNames = new Set(['chatgpt','claude','perplexity','cursor','figma','canva ai','notebooklm','linear','raycast','tailscale','semgrep','obsidian','readwise','product hunt','github copilot','supabase','vercel','posthog','sentry','1password','bitwarden','fireflies','fathom','elevenlabs','midjourney','runway','zapier','n8n','notion','airtable','slack','hubspot','semrush','ahrefs','clay','apollo.io','intercom','zendesk','shopify','stripe','resend','railway','cloudflare zero trust']);
+    const developerNames = new Set(['langgraph','crewai','microsoft autogen','openai agents sdk','dify','flowise','langsmith','langfuse','braintrust','arize phoenix','helicone','promptfoo','deepeval','ragas','vercel ai sdk','supabase','clerk','resend','railway','render','neon','convex','cloudflare workers','sentry','posthog','github','gitlab','docker','kubernetes','playwright','storybook','openapi generator','mintlify','scalar','semgrep','snyk','trivy','gitleaks','trufflehog','gitguardian','wiz','orcas security','orca security','burp suite','owasp zap']);
+    if(editorNames.has(name)) return 'editor';
+    if(developerNames.has(name) || /developer|coding|api|infrastructure|model ops|cybersecurity|privacy|dev tools|llmops|observability|security/.test(cat + ' ' + group) || /developer|open source|api|sdk|security|devops/.test(hay)) return 'developer';
+    if((Number(tool.popularity_score)||0) >= 76 || (Number(tool.final_rank_score)||0) >= 78 || /popular tools|market leader|enterprise/.test(hay)) return 'popular';
+    return '';
+  }
+
 
   function getCurrentGroups(items){
     if(activeTab === 'tab-0') return [];
@@ -212,7 +287,13 @@ window.initTools = async function() {
           <label class="compact-select-label">Sort
             <select class="compact-select" data-control="sort">
               <option value="recommended" ${sortMode==='recommended'?'selected':''}>Recommended</option>
+              <option value="editor" ${sortMode==='editor'?'selected':''}>Editor's choice first</option>
+              <option value="developer" ${sortMode==='developer'?'selected':''}>Developer picks first</option>
               <option value="popular" ${sortMode==='popular'?'selected':''}>Popular</option>
+              <option value="free" ${sortMode==='free'?'selected':''}>Free first</option>
+              <option value="open_source" ${sortMode==='open_source'?'selected':''}>Open source first</option>
+              <option value="website" ${sortMode==='website'?'selected':''}>Websites only</option>
+              <option value="tool" ${sortMode==='tool'?'selected':''}>Tools only</option>
               <option value="verified" ${sortMode==='verified'?'selected':''}>Recently verified</option>
               <option value="az" ${sortMode==='az'?'selected':''}>A-Z</option>
             </select>
@@ -244,9 +325,11 @@ window.initTools = async function() {
 
 
   function resetFilters(){
+    activePreset = 'all';
     activeTab = 'tab-0';
     activeGroup = 'all';
     searchQuery = '';
+    presetQuery = '';
     categoryQuery = '';
     sortMode = 'recommended';
     advancedOpen = false;
@@ -289,6 +372,9 @@ window.initTools = async function() {
 
     filtered = filtered.filter(passAdvancedFilters);
 
+    if(sortMode === 'website') filtered = filtered.filter(t => getItemType(t) === 'Website' || t.url || t.domain);
+    if(sortMode === 'tool') filtered = filtered.filter(t => getItemType(t) === 'Tool');
+
     if(searchQuery){
       const q = normalize(searchQuery);
       const words = q.split(/\s+/).filter(Boolean);
@@ -300,9 +386,24 @@ window.initTools = async function() {
       }
     }
 
+    if(presetQuery && !searchQuery){
+      const words = normalize(presetQuery).split(/\s+/).filter(Boolean);
+      if(words.length){
+        const presetFiltered = filtered.filter(t => {
+          const hay = [t.name, t.domain, t.best_for, t.description, (t.tags||[]).join(' '), t.primary_category, t.primary_group, (t.platforms||[]).join(' ')].join(' ').toLowerCase();
+          return words.some(w => hay.includes(w));
+        });
+        if(presetFiltered.length) filtered = presetFiltered;
+      }
+    }
+
     filtered.sort((a,b) => {
       if(sortMode === 'az') return a.name.localeCompare(b.name);
+      if(sortMode === 'editor') return (getChoiceKind(b)==='editor') - (getChoiceKind(a)==='editor') || (Number(b.final_rank_score)||0) - (Number(a.final_rank_score)||0) || a.name.localeCompare(b.name);
+      if(sortMode === 'developer') return (getChoiceKind(b)==='developer') - (getChoiceKind(a)==='developer') || (Number(b.final_rank_score)||0) - (Number(a.final_rank_score)||0) || a.name.localeCompare(b.name);
       if(sortMode === 'popular') return (Number(b.popularity_score)||0) - (Number(a.popularity_score)||0) || a.name.localeCompare(b.name);
+      if(sortMode === 'free') return (Number(b.has_free_plan===true) - Number(a.has_free_plan===true)) || a.name.localeCompare(b.name);
+      if(sortMode === 'open_source') return (Number(b.open_source===true || b.openSource===true) - Number(a.open_source===true || a.openSource===true)) || a.name.localeCompare(b.name);
       if(sortMode === 'verified') return String(b.last_verified||'').localeCompare(String(a.last_verified||'')) || a.name.localeCompare(b.name);
       const rankDiff = (Number(b.final_rank_score) || 0) - (Number(a.final_rank_score) || 0);
       return rankDiff || a.name.localeCompare(b.name);
@@ -335,19 +436,24 @@ window.initTools = async function() {
     const isFav = favorites.has(tool.id);
     const isSelected = selectedCompare.has(tool.id);
     const domain = tool.domain || '';
+    const itemType = getItemType(tool);
     const imgSrc = tool.logoUrl || faviconUrl(domain, 64);
     const imgFallback = ddgFaviconUrl(domain);
     const displayTags = getToolDisplayTags(tool);
     const displayDesc = tool.tagline || getShortDesc(tool.description) || 'No description available.';
     return `
       <article class="tool-card" tabindex="0" data-tool-id="${escapeHtml(tool.id)}">
+        ${choiceBadgeHtml(getChoiceKind(tool))}
         <div class="compare-wrap">
           <input type="checkbox" class="compare-check" aria-label="Compare ${escapeHtml(tool.name)}" title="Add to comparison" ${isSelected ? 'checked' : ''}>
         </div>
         <div class="tool-header">
           <div class="tool-title-row">
             <img class="tool-favicon" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" data-fallback="${escapeHtml(imgFallback)}">
-            <a class="tool-name" href="${escapeHtml(tool.url || '#')}" target="_blank" rel="noopener">${escapeHtml(tool.name)}</a>
+            <div>
+              <a class="tool-name" href="${escapeHtml(tool.url || '#')}" target="_blank" rel="noopener">${escapeHtml(tool.name)}</a>
+              <span class="tool-type-inline ${itemType.toLowerCase()}">${escapeHtml(itemType)}${domain ? ' · ' + escapeHtml(domain) : ''}</span>
+            </div>
           </div>
           <div class="tool-meta">
             <span class="tool-domain" title="${escapeHtml(domain)}">${escapeHtml(domain)}</span>
@@ -365,6 +471,10 @@ window.initTools = async function() {
 
   function renderContent(){
     const baseTools = tools.filter(tool => toolInTab(tool, activeTab));
+    if(activeTab !== 'tab-0' && activeGroup !== 'all') {
+      const validGroups = new Set(getCurrentGroups(baseTools).map(x => x[0]));
+      if(!validGroups.has(activeGroup)) activeGroup = 'all';
+    }
     renderedTools = filterTools();
     const cat = getCurrentCategory();
     if (els.categoryTitle) els.categoryTitle.textContent = cat.label;
@@ -377,7 +487,7 @@ window.initTools = async function() {
       }
     }
 
-    const controlsHtml = renderFilterControls(baseTools);
+    const controlsHtml = renderRecommendedViews() + renderFilterControls(baseTools);
 
     if(!renderedTools.length){
       els.content.innerHTML = controlsHtml + `<div class="no-results"><strong>No matching tools found</strong><span>Try a broader search, reset filters, or switch categories.</span></div>`;
@@ -491,6 +601,31 @@ window.initTools = async function() {
     exportToolRows(getExportRows(savedTools), 'master-dev-hub-saved-tools.csv');
   }
 
+  function inferToolGuidance(tool, similar){
+    const cats = getToolCategories(tool).join(', ') || tool.primary_category || 'general workflows';
+    const best = tool.best_for || tool.tagline || (tool.description ? getShortDesc(tool.description) : '') || `${tool.name} workflows`;
+    const audience = (tool.target_user || []).slice(0,3).join(', ') || ((tool.tags||[]).join(' ').match(/developer|marketer|creator|student|founder|enterprise/i) || ['Teams'])[0];
+    const itemType = getItemType(tool).toLowerCase();
+    const useWhen = `Use when you need ${best.replace(/\.$/, '')} in ${cats}.`;
+    const avoidWhen = itemType === 'website'
+      ? 'Avoid relying on it as your only source; verify details before making buying, hiring, or security decisions.'
+      : 'Avoid when pricing, data privacy, integrations, or vendor lock-in do not match your workflow.';
+    return {best, audience, useWhen, avoidWhen, alternatives: (similar || []).slice(0,4)};
+  }
+
+  function renderToolDecisionGuide(tool, similar){
+    const g = inferToolGuidance(tool, similar);
+    return `<div class="td-section td-guide-section">
+      <span class="td-section-label">Decision guide</span>
+      <div class="td-guide-grid">
+        <div class="td-guide-card"><strong>Best for</strong><span>${escapeHtml(g.best)}</span></div>
+        <div class="td-guide-card"><strong>Primary user</strong><span>${escapeHtml(g.audience)}</span></div>
+        <div class="td-guide-card td-wide"><strong>Use when</strong><span>${escapeHtml(g.useWhen)}</span></div>
+        <div class="td-guide-card td-wide"><strong>Avoid when</strong><span>${escapeHtml(g.avoidWhen)}</span></div>
+      </div>
+    </div>`;
+  }
+
   function openToolDetail(tool, opts){
     opts = opts || {};
     if(!opts.preserveFocus) lastToolFocus = document.activeElement;
@@ -583,6 +718,8 @@ window.initTools = async function() {
           ${(tool.integrations||[]).map(i=>`<span class="td-tag td-integration-tag">${escapeHtml(i)}</span>`).join('')}
         </div>
       </div>` : ''}
+
+      ${renderToolDecisionGuide(tool, similar)}
 
       ${cats.length ? `
       <div class="td-section">
@@ -684,8 +821,14 @@ window.initTools = async function() {
 
   // Delegated card action handlers (replaces per-card binding)
   els.content.addEventListener('click', e => {
+    const presetBtn = e.target.closest('.preset-chip');
+    if(presetBtn){
+      applyToolPreset(presetBtn.dataset.preset);
+      return;
+    }
     const groupBtn = e.target.closest('.group-chip');
     if(groupBtn){
+      activePreset = 'custom';
       activeGroup = groupBtn.dataset.group || 'all';
       renderContent();
       return;
@@ -697,6 +840,9 @@ window.initTools = async function() {
       return;
     }
     if(e.target.closest('.filter-clear-btn')){
+      activePreset = 'custom';
+      presetQuery = '';
+      searchQuery = '';
       advFilters = {pricing:'all', platform:'all', user:'all', availability:'all', status:'all'};
       activeGroup = 'all';
       sortMode = 'recommended';
@@ -725,9 +871,9 @@ window.initTools = async function() {
   });
   els.content.addEventListener('change', e => {
     const sort = e.target.closest('[data-control="sort"]');
-    if(sort){ sortMode = sort.value || 'recommended'; renderContent(); return; }
+    if(sort){ activePreset = 'custom'; sortMode = sort.value || 'recommended'; renderContent(); return; }
     const filter = e.target.closest('[data-filter]');
-    if(filter){ advFilters[filter.dataset.filter] = filter.value || 'all'; renderContent(); return; }
+    if(filter){ activePreset = 'custom'; advFilters[filter.dataset.filter] = filter.value || 'all'; renderContent(); return; }
     const compareCheck = e.target.closest('.compare-check');
     if(compareCheck){
       const id = compareCheck.closest('.tool-card')?.dataset.toolId;
@@ -741,8 +887,12 @@ window.initTools = async function() {
   els.tabs.addEventListener('click', e => {
     const btn = e.target.closest('.tab-btn');
     if(!btn) return;
+    activePreset = 'custom';
     activeTab = btn.dataset.tab;
     activeGroup = 'all';
+    searchQuery = '';
+    presetQuery = '';
+    advFilters = {pricing:'all', platform:'all', user:'all', availability:'all', status:'all'};
     renderTabs();
     renderContent();
     scrollSectionTop();
@@ -894,8 +1044,10 @@ window.addEventListener('hub-message', function(e){
     }
     if(msg.type==='search'){
       const next = (msg.query || '').trim();
-      if (next === searchQuery) return;
+      if (next === searchQuery && !presetQuery) return;
       searchQuery = next;
+      presetQuery = '';
+      activePreset = next ? 'custom' : activePreset;
       renderContent();
       return;
     }
