@@ -59,7 +59,7 @@ h1{margin:0;font-size:clamp(22px,2.2vw,32px);line-height:1.05;font-weight:900;le
 .back-link:hover{background:var(--accent-soft);border-color:var(--accent-border);color:var(--accent-hover)}
 
 /* ── Layout ──────────────────────────────────────────────────────── */
-.page-shell{max-width:1600px;margin:0 auto;padding:18px 12px 30px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:14px;align-items:start}
+.page-shell{max-width:1600px;margin:0 auto;padding:18px 12px 80px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:14px;align-items:start}
 .category-sidebar{position:sticky;top:max(0px,calc(var(--sticky-top) - 24px));max-height:calc(100dvh - var(--sticky-top));overflow:auto;background:linear-gradient(180deg,#fff 0%,#fbfdff 100%);border:1px solid var(--border);border-radius:18px;padding:12px;box-shadow:0 8px 24px rgba(15,23,42,.055)}
 .sidebar-title{display:flex;align-items:center;gap:8px;padding:4px 4px 12px;color:#1e293b;font-size:11px;font-weight:900;letter-spacing:.10em;text-transform:uppercase;border-bottom:1px solid #e8edf5;margin-bottom:8px}
 .sidebar-title::before{content:"◈";color:#6366f1;font-size:14px}
@@ -217,7 +217,7 @@ h1{margin:0;font-size:clamp(25px,2.4vw,34px);line-height:1.05;font-weight:900;le
 .header-actions{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .result-status{color:var(--muted);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
 
-.page-shell{max-width:1820px;margin:0 auto;padding:18px 12px 30px;display:grid;grid-template-columns:240px minmax(0,1fr);gap:14px;align-items:start}
+.page-shell{max-width:1820px;margin:0 auto;padding:18px 12px 80px;display:grid;grid-template-columns:240px minmax(0,1fr);gap:14px;align-items:start}
 .category-sidebar{position:sticky;top:max(0px,calc(var(--sticky-top) - 24px));max-height:calc(100dvh - var(--sticky-top));overflow:auto;background:linear-gradient(180deg,#fff 0%,#fbfdff 100%);border:1px solid var(--border);border-radius:18px;padding:12px;box-shadow:0 8px 24px rgba(15,23,42,.055)}
 .sidebar-title{display:flex;align-items:center;gap:8px;padding:4px 4px 12px;color:#1e293b;font-size:11px;font-weight:900;letter-spacing:.10em;text-transform:uppercase;border-bottom:1px solid #e8edf5;margin-bottom:2px}
 .sidebar-title::before{content:"◈";color:#6366f1;font-size:14px}
@@ -253,7 +253,7 @@ main{min-width:0}
 .category-title{margin:0;color:var(--heading);font-size:24px;letter-spacing:-.035em}
 .category-subtitle{margin:4px 0 0;color:var(--muted);font-size:12.5px}
 .tool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:18px}
-.group-block{margin-bottom:18px;content-visibility:auto;contain-intrinsic-size:0 500px}
+.group-block{margin-bottom:18px}
 .group-heading{display:flex;align-items:center;gap:10px;margin:16px 0 10px;color:#334155;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
 .group-heading::before{content:"";width:9px;height:9px;border-radius:999px;background:linear-gradient(135deg,#2563eb,#0891b2)}
 .group-count{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:900;letter-spacing:0;text-transform:none}
@@ -420,7 +420,7 @@ kbd{background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:8px;
 /* ── Keyboard focus ring on cards ───────────────────────────────── */
 .tool-card:focus-visible{outline:3px solid var(--accent);outline-offset:2px;transform:translateY(-3px)}
 @media(min-width:1200px){
-  .tool-grid{grid-template-columns:repeat(4,minmax(320px,1fr));gap:16px}
+  .tool-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
   .page-shell{max-width:1820px;grid-template-columns:240px minmax(0,1fr);gap:14px}
   .header-inner{max-width:1820px}
 }

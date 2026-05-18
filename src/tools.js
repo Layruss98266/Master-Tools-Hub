@@ -313,7 +313,13 @@ window.initTools = async function() {
 
   function faviconUrl(domain, sz){
     if(!domain) return '';
-    try{ var u=new URL('https://www.google.com/s2/favicons'); u.searchParams.set('domain',domain); u.searchParams.set('sz',String(sz||64)); return u.href; }catch(e){ return ''; }
+    try{
+      var u = new URL('https://www.google.com/s2/favicons');
+      u.searchParams.set('domain', domain);
+      u.searchParams.set('sz', String(sz || 64));
+      u.searchParams.set('default', '404');
+      return u.href;
+    } catch(e) { return ''; }
   }
   function ddgFaviconUrl(domain){
     return 'https://icons.duckduckgo.com/ip3/'+encodeURIComponent(domain)+'.ico';

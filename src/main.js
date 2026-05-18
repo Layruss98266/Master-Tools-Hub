@@ -8,10 +8,60 @@ import './tech.js';
   document.addEventListener('error', function(e){
     const img = e.target;
     if (!img || img.tagName !== 'IMG') return;
-    if (!img.dataset || !('fallback' in img.dataset)) return;
-    if (img.dataset.tried) { img.style.display = 'none'; return; }
-    img.dataset.tried = '1';
-    img.src = img.dataset.fallback;
+    
+    // Catch tool directory favicons and similar tool favicons
+    if (img.classList.contains('tool-favicon') || img.classList.contains('td-favicon-lg') || img.classList.contains('td-sim-favicon')) {
+      // First try the DuckDuckGo/Google fallback if we haven't already
+      if (img.dataset && 'fallback' in img.dataset && !img.dataset.tried) {
+        img.dataset.tried = '1';
+        img.src = img.dataset.fallback;
+        return;
+      }
+      
+      // Fallback failed or wasn't provided: Render a premium, beautiful CSS gradient letter avatar!
+      let name = '';
+      const card = img.closest('.tool-card') || img.closest('.td-similar-card') || img.closest('.td-head');
+      if (card) {
+        const nameEl = card.querySelector('.tool-name') || card.querySelector('.td-sim-name') || card.querySelector('.td-title');
+        if (nameEl) name = nameEl.textContent;
+      }
+      if (!name) name = img.alt || 'T';
+      
+      const letter = name.trim().charAt(0).toUpperCase() || 'T';
+      
+      // Calculate a beautiful premium gradient based on the first letter's character code
+      const charCode = letter.charCodeAt(0);
+      const hue1 = (charCode * 23) % 360;
+      const hue2 = (hue1 + 45) % 360;
+      const gradient = `linear-gradient(135deg, hsl(${hue1}, 80%, 55%) 0%, hsl(${hue2}, 85%, 42%) 100%)`;
+      
+      // Create the replacement div styled exactly like the original favicon size
+      const avatar = document.createElement('div');
+      avatar.className = img.className + ' premium-avatar-fallback';
+      avatar.style.background = gradient;
+      avatar.style.display = 'inline-flex';
+      avatar.style.alignItems = 'center';
+      avatar.style.justifyContent = 'center';
+      avatar.style.color = '#ffffff';
+      avatar.style.fontWeight = '800';
+      avatar.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
+      avatar.style.fontFamily = 'Inter, system-ui, sans-serif';
+      avatar.textContent = letter;
+      
+      // Size responsive configuration mapping the original CSS dimensions
+      const isLarge = img.classList.contains('td-favicon-lg');
+      const isSim = img.classList.contains('td-sim-favicon');
+      
+      avatar.style.width = isLarge ? '44px' : (isSim ? '20px' : '24px');
+      avatar.style.height = isLarge ? '44px' : (isSim ? '20px' : '24px');
+      avatar.style.borderRadius = isLarge ? '12px' : (isSim ? '5px' : '7px');
+      avatar.style.fontSize = isLarge ? '18px' : (isSim ? '10px' : '11px');
+      avatar.style.flexShrink = '0';
+      avatar.style.boxShadow = '0 4px 12px rgba(15,23,42,.08)';
+      avatar.style.border = '1px solid rgba(255,255,255,0.15)';
+      
+      img.parentNode.replaceChild(avatar, img);
+    }
   }, true);
 
   const loaded = {tools:false, tech:false};
