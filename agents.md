@@ -1,7 +1,7 @@
 # Master Dev Hub — Agent Context
 
 ## Overview
-High-performance, production-grade, decomposed developer catalog featuring **1,524 AI Tools** and **1,767 Developer Stacks**. Decomposed from a monolithic 7.11 MB HTML file into a dynamic, lazy-loaded **Vite + Vanilla JS** SPA.
+High-performance, production-grade, decomposed developer catalog featuring **2,386 AI Tools** and **1,861 Developer Stacks**. Decomposed from a monolithic 7.11 MB HTML file into a dynamic, lazy-loaded **Vite + Vanilla JS** SPA.
 
 ## Stack
 - **Bundler**: Vite 8+
@@ -14,8 +14,8 @@ High-performance, production-grade, decomposed developer catalog featuring **1,5
 master-dev-hub/
 ├── public/
 │   ├── data/                       # Asynchronously lazy-loaded datasets
-│   │   ├── tools-data.js           # 1,524 AI Tools database (2.9 MB)
-│   │   ├── tech-data.js            # 1,767 Developer Tech database (2.7 MB)
+│   │   ├── tools-data.js           # 2,386 AI Tools database (2.9 MB)
+│   │   ├── tech-data.js            # 1,861 Developer Tech database (2.7 MB)
 │   │   └── search-index.js         # Pre-compiled global search index (1.3 MB)
 │   ├── favicon.svg                 # Brand icon
 │   └── icons.svg                   # Global vector icon library

@@ -33,6 +33,12 @@ window.initTools = async function() {
     });
   })();
 
+  function getSimilarTools(tool, limit) {
+    const ids = similarityMap.get(tool.id) || [];
+    return ids.map(id => tools.find(t => t.id === id)).filter(Boolean).slice(0, limit || 6);
+  }
+
+
   const els = {
     tabs: document.getElementById('tools-tabs'),
     content: document.getElementById('tools-content'),
