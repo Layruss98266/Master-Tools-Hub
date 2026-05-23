@@ -87,6 +87,8 @@ import './tech.js';
   }
   window.hubSetResultChip = setResultChip;
 
+  const hubTotalMeta = document.getElementById('hub-total-meta');
+
   function updateCount(section) {
     const el = countEls[section];
     if (!el) return;
@@ -199,7 +201,6 @@ import './tech.js';
   const hubSearchClearEl = document.getElementById('hub-global-search-clear');
   const hubSearchWrap = hubSearchEl ? hubSearchEl.closest('.hub-search') : null;
   const hubSearchTrigger = document.getElementById('hub-search-trigger');
-  const hubTotalMeta = document.getElementById('hub-total-meta');
 
   const HUB_RECENT_KEY = 'hub_global_search_recent_v1';
   const SUGGESTED = ['AI coding', 'SEO', 'WordPress', 'database', 'meeting notes', 'image generation', 'Docker', 'Figma'];

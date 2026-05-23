@@ -20,7 +20,12 @@ const DataLoader = (function() {
     
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = scriptUrl;
+      // Resolve relative data paths against Vite's configured base so the
+      // <script> fallback works under nested-route / sub-path deployments.
+      const base = (import.meta.env && import.meta.env.BASE_URL) || '/';
+      script.src = /^([a-z]+:)?\/\//i.test(scriptUrl) || scriptUrl.startsWith('/')
+        ? scriptUrl
+        : base.replace(/\/$/, '/') + scriptUrl.replace(/^\.?\//, '');
       script.onload = () => {
         cache[globalVarName] = window[globalVarName];
         resolve(window[globalVarName]);
