@@ -1063,12 +1063,12 @@ window.addEventListener('hub-message', function(e){
       return;
     }
     if(msg.type==='selectCategory'){
-      var btn = els.tabs.querySelector('.tab-btn[data-tab="'+msg.id+'"]');
+      var btn = els.tabs.querySelector('.tab-btn[data-tab="'+CSS.escape(msg.id)+'"]');
       if(btn){ btn.click(); scrollSectionTop(); }
     }
     if(msg.type==='scrollToItem'){
       if(msg.category){
-        var tb = els.tabs.querySelector('.tab-btn[data-tab="'+msg.category+'"]');
+        var tb = els.tabs.querySelector('.tab-btn[data-tab="'+CSS.escape(msg.category)+'"]');
         if(tb) tb.click();
       }
       requestAnimationFrame(function(){

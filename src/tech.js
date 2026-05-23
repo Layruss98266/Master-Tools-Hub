@@ -411,7 +411,7 @@ window.initTech = async function() {
         return;
       }
       if(msg.type === 'selectCategory'){
-        const btn = els.tabs.querySelector('.tab-btn[data-cat="'+msg.id+'"]');
+        const btn = els.tabs.querySelector('.tab-btn[data-cat="'+CSS.escape(msg.id)+'"]');
         if(btn){ btn.click(); scrollSectionTop(); }
       }
       if(msg.type === 'scrollToItem'){
