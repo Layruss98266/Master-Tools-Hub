@@ -1,7 +1,5 @@
-import './dataLoader.js';
-import './tools.js';
-import './tech.js';
-
+/* Loaded as a classic script by the Next.js /hub route after dataLoader.js,
+   tools.js, and tech.js have already defined window.DataLoader / initTools / initTech. */
 (function(){
   // Global delegated favicon fallback. It must exist before any section data loads,
   // because global search can render favicon images before Tools is initialized.
@@ -148,7 +146,7 @@ import './tech.js';
 
     // Ask the active section to refresh its result-chip text
     window.dispatchEvent(new CustomEvent('hub-message', {detail: {type:'refreshChip'}}));
-    document.title = section === 'tech' ? 'Tech Stack - Master Dev Hub' : 'AI Tools - Master Dev Hub';
+    document.title = section === 'tech' ? 'Tech Stack - ToolForge' : 'AI Tools - ToolForge';
 
     if (push) {
       try { history.replaceState(null, '', '#' + section); } catch(e) {}

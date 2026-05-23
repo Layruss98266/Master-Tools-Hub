@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://master-dev-hub.com/sitemap.xml
+Sitemap: https://toolforge.dev/sitemap.xml

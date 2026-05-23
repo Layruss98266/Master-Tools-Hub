@@ -1,68 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Master Dev Hub - Comprehensive catalog of 2,386 AI Tools and 1,861 Developer Tech Stacks. Browse, search, compare, and discover curated tools and technologies.">
-  <link rel="canonical" href="https://master-dev-hub.com/">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <title>Master Dev Hub - AI Tools &amp; Tech Stack</title>
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Master Dev Hub">
-  <meta property="og:title" content="Master Dev Hub - AI Tools &amp; Tech Stack">
-  <meta property="og:description" content="Curated catalog of 2,386 AI tools and 1,861 developer tech stacks. Browse, search, and compare.">
-  <meta property="og:url" content="https://master-dev-hub.com/">
-  <meta property="og:image" content="https://master-dev-hub.com/favicon.svg">
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Master Dev Hub - AI Tools &amp; Tech Stack">
-  <meta name="twitter:description" content="Curated catalog of 2,386 AI tools and 1,861 developer tech stacks. Browse, search, and compare.">
-
-  <!-- Structured data -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebSite",
-        "name": "Master Dev Hub",
-        "url": "https://master-dev-hub.com/",
-        "description": "Curated catalog of AI tools and developer tech stacks.",
-        "potentialAction": {
-          "@type": "SearchAction",
-          "target": { "@type": "EntryPoint", "urlTemplate": "https://master-dev-hub.com/?q={search_term_string}" },
-          "query-input": "required name=search_term_string"
-        }
-      },
-      {
-        "@type": "Organization",
-        "name": "Master Dev Hub",
-        "url": "https://master-dev-hub.com/",
-        "logo": "https://master-dev-hub.com/favicon.svg"
-      }
-    ]
-  }
-  </script>
-
-  <link rel="stylesheet" href="/src/styles/main.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-</head>
-<body>
-  <header class="hub-header">
+// AUTO-GENERATED from hub.html: the proven hub markup, injected by app/hub/page.tsx.
+// Controllers query these element IDs at runtime; do not rename IDs.
+export const HUB_MARKUP = `<header class="hub-header">
     <div class="hub-topline">
-      <div class="hub-brand" aria-label="Master Dev Hub">
+      <a class="hub-brand" href="/" aria-label="Back to ToolForge home">
         <span class="hub-brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"/></svg>
         </span>
         <div class="hub-brand-copy">
-          <span class="hub-brand-text">Master Dev Hub</span>
+          <span class="hub-brand-text">ToolForge</span>
           <span class="hub-brand-subtext">AI tools + developer technologies</span>
         </div>
-      </div>
+      </a>
 
       <nav class="hub-nav" role="tablist" aria-label="Main navigation">
         <button class="hub-nav-btn active" data-target="tools" type="button" role="tab" id="hub-tab-tools" aria-selected="true" aria-controls="tools-section" tabindex="0">
@@ -84,6 +32,7 @@
       </button>
 
       <div class="hub-meta">
+        <a href="/" class="hub-home-link" aria-label="Home">← Home</a>
         <span class="hub-total-meta" id="hub-total-meta">4,247 items · Updated May 2026</span>
         <span class="hub-result-chip" id="hub-result-chip" hidden></span>
         <button type="button" class="hub-help" id="hub-help-btn" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="hub-help-popover">
@@ -146,14 +95,11 @@
     </div>
     <nav class="tabs" id="tools-tabs" aria-label="Tool categories" role="tablist"></nav>
   </aside>
-  
 
   <section data-embedded-main="tools" id="tools-main">
-
     <div id="tools-content"></div>
   </section>
 </div>
-
 
 <div class="compare-bar" id="tools-compareBar">
   <div class="compare-items" id="tools-compareItems"></div>
@@ -190,21 +136,21 @@
 <footer class="directory-footer" aria-label="AI tools directory footer">
   <div class="directory-footer-inner">
     <div class="directory-footer-brand">
-      <strong>Master Dev Hub</strong>
+      <strong>ToolForge</strong>
       <span id="tools-footer-summary">2,386 AI tools across curated categories.</span>
     </div>
     <div class="directory-footer-actions">
       <button type="button" class="footer-action" data-footer-action="search">Search all</button>
       <button type="button" class="footer-action" data-footer-action="top">Back to top</button>
+      <a href="/" class="footer-action" style="text-decoration:none">← Home</a>
       <span class="footer-meta">Updated May 2026</span>
     </div>
   </div>
 </footer>
 <button class="back-to-top" id="tools-backToTop" aria-label="Back to top" title="Back to top">↑</button>
-
-
 <div class="share-toast" id="tools-shareToast">Link copied!</div>
     </section>
+
     <section id="tech-section" class="hub-section sec-tech" role="tabpanel" aria-labelledby="hub-tab-tech" hidden>
 <div class="page-shell">
   <aside class="category-sidebar" aria-label="Categories">
@@ -243,19 +189,17 @@
 <footer class="directory-footer" aria-label="Technology directory footer">
   <div class="directory-footer-inner">
     <div class="directory-footer-brand">
-      <strong>Master Dev Hub</strong>
+      <strong>ToolForge</strong>
       <span id="tech-tech-footer-summary">1,861 technologies organized by developer-focused categories.</span>
     </div>
     <div class="directory-footer-actions">
       <button type="button" class="footer-action" data-footer-action="search">Search all</button>
       <button type="button" class="footer-action" data-footer-action="top">Back to top</button>
+      <a href="/" class="footer-action" style="text-decoration:none">← Home</a>
       <span class="footer-meta">Updated May 2026</span>
     </div>
   </div>
 </footer>
 <button class="back-to-top" id="tech-backToTop" aria-label="Back to top">↑</button>
     </section>
-  </main>
-  <script type="module" src="/src/main.js"></script>
-</body>
-</html>
+  </main>`;

@@ -1,51 +1,52 @@
-# ⚡ Master Dev Hub
+# ⚡ ToolForge
 
-A premium, high-performance developer catalog featuring **2,386 AI Tools** and **1,861 Developer Technologies**. Optimized from a monolithic 7.11 MB HTML file into a dynamic, lazy-loaded **Vite + Vanilla JS** SPA.
+A premium developer catalog featuring **2,386 AI Tools** and **1,861 Developer Technologies**, built on **Next.js 15 (App Router) + React 19 + TypeScript**. A polished marketing site (Home / About / Contact) wraps the full-featured catalog hub.
 
 ## 📁 Repository Structure
 ```
-master-dev-hub/
+toolforge/
+├── app/                            # Next.js App Router
+│   ├── layout.tsx                  # Root layout (Inter font, metadata)
+│   ├── globals.css                 # World-class dark design system
+│   ├── page.tsx                    # Home (hero, product preview, features, CTA)
+│   ├── about/page.tsx              # About / story / principles
+│   ├── contact/page.tsx            # Contact form + FAQ
+│   └── hub/                        # The catalog hub
+│       ├── layout.tsx              # Hub metadata
+│       └── page.tsx                # Client component: injects markup + boots controllers
+├── components/                     # React components
+│   ├── SiteNav.tsx · SiteFooter.tsx
+│   ├── Effects.tsx                 # Scroll-reveal, count-up, cursor spotlight
+│   ├── ContactForm.tsx · Faq.tsx
+├── lib/
+│   └── hubMarkup.ts                # Hub DOM markup (the catalog shell)
 ├── public/
-│   ├── data/                       # Asynchronously lazy-loaded datasets
-│   │   ├── tools-data.js           # 2,386 AI Tools database
-│   │   ├── tech-data.js            # 1,861 Developer Tech database
-│   │   └── search-index.js         # Global search index
-│   ├── favicon.svg                 # Brand icon
-│   └── icons.svg                   # Global vector icon library
-├── src/
-│   ├── styles/                     # Modularized Vanilla CSS styles
-│   │   ├── hub-shell.css           # Header, layout, autocomplete search
-│   │   ├── tools-tech.css          # Cards, categories sidebar, modals, drawers
-│   │   └── main.css                # Style entry aggregator
-│   ├── dataLoader.js               # Dynamic script injection and caching manager
-│   ├── tools.js                    # AI Tools tab controller and favorites logic
-│   ├── tech.js                     # Tech Stack tab controller and filtering logic
-│   └── main.js                     # SPA tab router and global search orchestrator
-├── index.html                      # DOM nodes entrypoint mount
-├── vite.config.js                  # Production bundler relative paths config
-└── agents.md                       # Layout constraints and visual developer gotchas
+│   ├── data/                       # Lazy-loaded datasets (tools, tech, search index)
+│   ├── hub-app/                    # Hub engine served as static assets
+│   │   ├── hub.css                 # Hub styles (shell + cards + drawers)
+│   │   ├── dataLoader.js · tools.js · tech.js · main.js
+│   ├── favicon.svg · icons.svg
+├── next.config.mjs · tsconfig.json · types.d.ts
+└── agents.md                       # Layout constraints and visual gotchas
 ```
+
+> The hub catalog logic is the original, battle-tested vanilla-JS engine. The `/hub` route mounts it inside a React client component (injecting the markup and booting the controllers on mount, cleaning up on unmount). Its internals can be incrementally rewritten into pure React over time.
 
 ## 🚀 Getting Started
 
-### Installation
 ```bash
 git clone https://github.com/Surya8991/Master-Tools-Hub.git
-cd master-dev-hub
+cd Master-Tools-Hub
 npm install
+npm run dev      # http://localhost:3000
 ```
-
-### Local Development
-```bash
-npm run dev
-```
-Runs the server locally at `http://localhost:5173/` with hot module reloading.
 
 ### Production Build
 ```bash
-npm run build
+npm run build    # optimized Next.js build
+npm run start    # serve the production build
 ```
-Compiles and bundles minimized assets into the `/dist` directory. The built assets are ready for static hosting deployment (Vercel, GitHub Pages, Netlify).
+Deploys cleanly to Vercel (zero-config) or any Node host.
 
 ## ⚡ Core Features
 - **Bi-Tabular Dashboard**: Instant client-side switching between **AI Tools** and **Tech Stack** directories.
