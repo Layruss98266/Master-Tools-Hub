@@ -201,6 +201,22 @@ import './tech.js';
   const hubSearchClearEl = document.getElementById('hub-global-search-clear');
   const hubSearchWrap = hubSearchEl ? hubSearchEl.closest('.hub-search') : null;
   const hubSearchTrigger = document.getElementById('hub-search-trigger');
+  const hubSearchLive = document.getElementById('hub-search-live');
+
+  function announceResults(count) {
+    if (!hubSearchLive) return;
+    hubSearchLive.textContent = count
+      ? count + ' result' + (count === 1 ? '' : 's') + ' available'
+      : 'No results';
+  }
+
+  // Assign unique ids to every result option so aria-activedescendant can reference them.
+  function assignResultOptionIds() {
+    if (!hubResultsEl) return;
+    hubResultsEl.querySelectorAll('.hub-result').forEach((el, i) => {
+      if (!el.id) el.id = 'hub-result-opt-' + i;
+    });
+  }
 
   const HUB_RECENT_KEY = 'hub_global_search_recent_v1';
   const SUGGESTED = ['AI coding', 'SEO', 'WordPress', 'database', 'meeting notes', 'image generation', 'Docker', 'Figma'];
@@ -458,6 +474,7 @@ import './tech.js';
   }
   function closeResults() {
     if (hubResultsEl) { hubResultsEl.hidden = true; setSearchWrapExpanded(false); }
+    if (hubSearchEl) hubSearchEl.removeAttribute('aria-activedescendant');
   }
 
   function renderEmpty() {
@@ -483,6 +500,8 @@ import './tech.js';
     html += renderFooter(0);
     hubResultsEl.innerHTML = html;
     bindResultRows();
+    assignResultOptionIds();
+    if (hubSearchEl) hubSearchEl.removeAttribute('aria-activedescendant');
     openResults();
   }
 
@@ -534,6 +553,9 @@ import './tech.js';
           SUGGESTED.map(s => '<button type="button" class="hub-suggest-pill" data-suggest="' + esc(s) + '">' + esc(s) + '</button>').join('') +
           '</div></div>' + renderFooter(0);
         bindResultRows();
+        assignResultOptionIds();
+        announceResults(0);
+        if (hubSearchEl) hubSearchEl.removeAttribute('aria-activedescendant');
         openResults();
         return;
       }
@@ -568,7 +590,7 @@ import './tech.js';
               if (meta.pricing && !/^unknown$/i.test(meta.pricing)) parts.push(meta.pricing);
               sub = parts.join(' · ');
               if (meta.domain) {
-                faviconCell = '<span class="hub-result-favicon"><img loading="lazy" alt="" src="https://www.google.com/s2/favicons?domain=' + encodeURIComponent(meta.domain) + '&sz=32" data-fallback="https://icons.duckduckgo.com/ip3/' + encodeURIComponent(meta.domain) + '.ico"></span>';
+                faviconCell = '<span class="hub-result-favicon"><img width="20" height="20" loading="lazy" alt="" src="https://www.google.com/s2/favicons?domain=' + encodeURIComponent(meta.domain) + '&sz=32" data-fallback="https://icons.duckduckgo.com/ip3/' + encodeURIComponent(meta.domain) + '.ico"></span>';
               }
             }
           } else {
@@ -579,7 +601,7 @@ import './tech.js';
                 faviconCell = '<span class="hub-result-favicon hub-result-favicon-emoji">' + esc(meta.icon) + '</span>';
               } else if (meta.github) {
                 const owner = String(meta.github).split('/')[0];
-                if (owner) faviconCell = '<span class="hub-result-favicon"><img loading="lazy" alt="" src="https://github.com/' + encodeURIComponent(owner) + '.png?size=32"></span>';
+                if (owner) faviconCell = '<span class="hub-result-favicon"><img width="20" height="20" loading="lazy" alt="" src="https://github.com/' + encodeURIComponent(owner) + '.png?size=32"></span>';
               }
             }
           }
@@ -600,8 +622,10 @@ import './tech.js';
 
       hubResultsEl.innerHTML = html;
       bindResultRows();
+      assignResultOptionIds();
+      announceResults(filtered.length);
       const first = hubResultsEl.querySelector('.hub-result');
-      if (first) first.classList.add('is-active');
+      if (first) setActiveResult(first);
       openResults();
     });
   }
@@ -666,10 +690,15 @@ import './tech.js';
 
   function setActiveResult(el) {
     if (!hubResultsEl) return;
-    hubResultsEl.querySelectorAll('.hub-result.is-active').forEach(n => n.classList.remove('is-active'));
+    hubResultsEl.querySelectorAll('.hub-result.is-active').forEach(n => { n.classList.remove('is-active'); n.removeAttribute('aria-selected'); });
     if (el) {
       el.classList.add('is-active');
+      if (!el.id) assignResultOptionIds();
+      el.setAttribute('aria-selected', 'true');
+      if (hubSearchEl && el.id) hubSearchEl.setAttribute('aria-activedescendant', el.id);
       el.scrollIntoView({block: 'nearest'});
+    } else if (hubSearchEl) {
+      hubSearchEl.removeAttribute('aria-activedescendant');
     }
   }
 

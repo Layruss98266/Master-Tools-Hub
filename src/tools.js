@@ -455,7 +455,7 @@ window.initTools = async function() {
         </div>
         <div class="tool-header">
           <div class="tool-title-row">
-            <img class="tool-favicon" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" data-fallback="${escapeHtml(imgFallback)}">
+            <img class="tool-favicon" width="24" height="24" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" data-fallback="${escapeHtml(imgFallback)}">
             <div>
               <a class="tool-name" href="${escapeHtml(tool.url || '#')}" target="_blank" rel="noopener">${escapeHtml(tool.name)}</a>
               <span class="tool-type-inline ${itemType.toLowerCase()}">${escapeHtml(itemType)}${domain ? ' · ' + escapeHtml(domain) : ''}</span>
@@ -751,7 +751,7 @@ window.initTools = async function() {
             const simFallback = `https://icons.duckduckgo.com/ip3/${simFav}.ico`;
             return `
             <button class="td-similar-card" type="button" data-sim-id="${escapeHtml(s.id)}">
-              <img class="td-sim-favicon" src="https://www.google.com/s2/favicons?domain=${simFav}&sz=32" alt=""
+              <img class="td-sim-favicon" width="20" height="20" src="https://www.google.com/s2/favicons?domain=${simFav}&sz=32" alt=""
                 data-fallback="${simFallback}">
               <span class="td-sim-info">
                 <span class="td-sim-name">${escapeHtml(s.name)}</span>
