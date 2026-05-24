@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { HUB_MARKUP } from "@/lib/hubMarkup";
 
 // Version query busts the browser cache when the hub stylesheet changes.
-const CSS_HREF = "/hub-app/hub.css?v=6";
+const CSS_HREF = "/hub-app/hub.css?v=7";
 const THEME_KEY = "hubTheme"; // "dark" | "light"
 const SCRIPTS = [
   "/hub-app/dataLoader.js",

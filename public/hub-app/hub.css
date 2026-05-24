@@ -1272,3 +1272,48 @@ body.hub-dark .clear-search:hover { background: rgba(255,255,255,.06); color: #e
 
 /* Compare-selection checkboxes on cards */
 body.hub-dark input[type="checkbox"] { accent-color: #7c3aed; }
+
+/* =====================================================================
+   PART 5 - Hub header (nav bar) + directory footer polish (both themes)
+   ===================================================================== */
+
+/* --- Header: animated gradient hairline under the bar --- */
+.hub-header { position: relative; }
+.hub-header::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99,102,241,.55), rgba(34,211,238,.4), transparent);
+  pointer-events: none;
+}
+
+/* Dark theme: deepen the header so it reads as part of the near-black canvas */
+body.hub-dark .hub-header {
+  background: linear-gradient(120deg, #0a0a14 0%, #130f28 52%, #1a1340 100%);
+  border-bottom: 1px solid rgba(167,139,250,.22);
+  box-shadow: 0 10px 34px rgba(0,0,0,.5);
+}
+body.hub-dark .hub-header::after {
+  background: linear-gradient(90deg, transparent, rgba(167,139,250,.6), rgba(34,211,238,.45), transparent);
+}
+body.hub-dark .hub-brand-subtext { color: #a5a5c4; }
+body.hub-dark .hub-nav { background: rgba(15,12,40,.5); border-color: rgba(167,139,250,.16); }
+body.hub-dark .hub-search-trigger { background: rgba(15,12,40,.45); border-color: rgba(167,139,250,.22); color: #d8d0ff; }
+body.hub-dark .hub-search-trigger:hover { background: rgba(167,139,250,.22); border-color: rgba(167,139,250,.5); color: #fff; }
+body.hub-dark .hub-total-meta { color: #a5a5c4; }
+body.hub-dark .hub-help { background: rgba(167,139,250,.14); border-color: rgba(167,139,250,.3); color: #d8d0ff; }
+body.hub-dark .hub-help:hover { background: rgba(167,139,250,.26); border-color: rgba(167,139,250,.55); color: #fff; }
+
+/* --- Footer: gradient top accent + polished card --- */
+.directory-footer-inner { position: relative; overflow: hidden; }
+.directory-footer-inner::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(120deg, #a78bfa, #6366f1, #3b82f6, #22d3ee);
+  opacity: .85; pointer-events: none;
+}
+body.hub-dark .directory-footer-inner {
+  background: linear-gradient(180deg, #0f0f1c 0%, #0a0a14 100%);
+  border-color: rgba(167,139,250,.18);
+  box-shadow: 0 12px 30px rgba(0,0,0,.45);
+}
+body.hub-dark .directory-footer-brand strong { color: #f0f0f8; }
+body.hub-dark .directory-footer-brand span { color: #8a8aa3; }
+body.hub-dark .footer-meta { color: #8a8aa3; }
