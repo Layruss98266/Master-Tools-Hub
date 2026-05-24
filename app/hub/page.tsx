@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import { HUB_MARKUP } from "@/lib/hubMarkup";
 
 // Version query busts the browser cache when the hub stylesheet changes.
-const CSS_HREF = "/hub-app/hub.css?v=5";
+const CSS_HREF = "/hub-app/hub.css?v=6";
+const THEME_KEY = "hubTheme"; // "dark" | "light"
 const SCRIPTS = [
   "/hub-app/dataLoader.js",
   "/hub-app/tools.js",
@@ -24,6 +25,14 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
+function getStoredTheme(): "dark" | "light" {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    if (v === "light" || v === "dark") return v;
+  } catch {}
+  return "dark"; // default to dark, matching the rest of the site
+}
+
 export default function HubPage() {
   const mounted = useRef(true);
 
@@ -31,7 +40,33 @@ export default function HubPage() {
     mounted.current = true;
     document.body.classList.add("hub-active");
 
-    // Inject hub stylesheet (scoped to this route by removing it on unmount)
+    // Apply the saved theme (dark by default).
+    const applyTheme = (theme: "dark" | "light") => {
+      document.body.classList.toggle("hub-dark", theme === "dark");
+      const btn = document.getElementById("hub-theme-toggle");
+      if (btn) {
+        btn.setAttribute(
+          "aria-label",
+          theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
+        );
+      }
+    };
+    let theme = getStoredTheme();
+    applyTheme(theme);
+
+    // Toggle handler, delegated so it survives the dangerouslySetInnerHTML markup.
+    const onToggleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest("#hub-theme-toggle");
+      if (!target) return;
+      theme = theme === "dark" ? "light" : "dark";
+      applyTheme(theme);
+      try {
+        localStorage.setItem(THEME_KEY, theme);
+      } catch {}
+    };
+    document.addEventListener("click", onToggleClick);
+
+    // Inject hub stylesheet (scoped to this route by removing it on unmount).
     let link = document.getElementById("hub-css") as HTMLLinkElement | null;
     if (!link) {
       link = document.createElement("link");
@@ -55,7 +90,8 @@ export default function HubPage() {
 
     return () => {
       mounted.current = false;
-      document.body.classList.remove("hub-active");
+      document.removeEventListener("click", onToggleClick);
+      document.body.classList.remove("hub-active", "hub-dark");
       document.getElementById("hub-css")?.remove();
       document.querySelectorAll('script[data-hub="1"]').forEach((el) => el.remove());
     };
