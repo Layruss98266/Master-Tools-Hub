@@ -33,6 +33,12 @@ window.initTech = async function() {
       tdClose: document.getElementById('tech-tdClose')
     };
 
+    // If core elements are missing from the DOM, the hub route has unmounted. Abort early.
+    if (!els.tabs || !els.content) {
+      console.warn("[hub] Tech elements missing from DOM. Aborting initialization.");
+      return;
+    }
+
     function scrollSectionTop(){ const sec = document.getElementById('tech-section'); if (sec) sec.scrollTo({top: 0, behavior: 'smooth'}); }
     function escapeHtml(value){ return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
     function normalize(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' '); }

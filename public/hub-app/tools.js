@@ -68,6 +68,12 @@ window.initTools = async function() {
     shareToast: document.getElementById('tools-shareToast'),
   };
 
+  // If core elements are missing from the DOM, the hub route has unmounted. Abort early.
+  if (!els.tabs || !els.content) {
+    console.warn("[hub] Tools elements missing from DOM. Aborting initialization.");
+    return;
+  }
+
   const FAVORITES_KEY    = 'master_tools_favorites_v2';
   const RECENT_KEY       = 'master_tools_recent_v1';
   const DENSITY_KEY      = 'master_tools_density_v1';
@@ -642,12 +648,16 @@ window.initTools = async function() {
     }
 
     // Header
-    els.tdFavicon.src = faviconUrl(faviconHost, 128);
-    els.tdFavicon.dataset.fallback = ddgFaviconUrl(faviconHost);
-    els.tdFavicon.dataset.tried = '';
-    els.tdName.textContent = tool.name;
-    els.tdUrlLink.href = tool.url || '#';
-    els.tdUrlLink.textContent = domain || tool.url || '';
+    if (els.tdFavicon) {
+      els.tdFavicon.src = faviconUrl(faviconHost, 128);
+      els.tdFavicon.dataset.fallback = ddgFaviconUrl(faviconHost);
+      els.tdFavicon.dataset.tried = '';
+    }
+    if (els.tdName) els.tdName.textContent = tool.name;
+    if (els.tdUrlLink) {
+      els.tdUrlLink.href = tool.url || '#';
+      els.tdUrlLink.textContent = domain || tool.url || '';
+    }
 
     // Categories (excluding Master List)
     const cats = tool.placements
@@ -667,115 +677,117 @@ window.initTools = async function() {
     const altTools = altIds.map(id => tools.find(t => t.id === id)).filter(Boolean).slice(0,6);
     const similar = altTools.length ? altTools : getSimilarTools(tool, 6);
 
-    els.tdBody.innerHTML = `
-      <div class="td-actions">
-        <a class="td-visit-btn" href="${escapeHtml(tool.url || '#')}" target="_blank" rel="noopener">Visit website ↗</a>
-        <button class="td-fav-btn ${isFav ? 'active' : ''}" id="tdFavBtn" type="button"
-          aria-label="${isFav ? 'Remove from saved' : 'Save tool'}"></button>
-      </div>
-
-      <div class="td-stats-bar">
-        ${tool.pricing && !/^unknown$/i.test(String(tool.pricing)) ? `<span class="td-stat-chip">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M6 4v2.5L7.5 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          ${escapeHtml(tool.pricing)}
-        </span>` : ''}
-        ${cats.length ? `<span class="td-stat-chip">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="2" width="10" height="2" rx="1" fill="currentColor"/><rect x="1" y="5" width="7" height="2" rx="1" fill="currentColor"/><rect x="1" y="8" width="8" height="2" rx="1" fill="currentColor"/></svg>
-          ${cats.length} ${cats.length === 1 ? 'category' : 'categories'}
-        </span>` : ''}
-        ${allTags.length ? `<span class="td-stat-chip">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M1.5 6.5 5 10l5.5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          ${allTags.length} tag${allTags.length !== 1 ? 's' : ''}
-        </span>` : ''}
-        ${domain ? `<span class="td-stat-chip">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M6 1c0 0-2 2-2 5s2 5 2 5M6 1c0 0 2 2 2 5s-2 5-2 5M1 6h10" stroke="currentColor" stroke-width="1.2"/></svg>
-          ${escapeHtml(domain)}
-        </span>` : ''}
-        ${(tool.platforms||[]).length ? (tool.platforms||[]).map(p=>`<span class="td-stat-chip">`+escapeHtml(p)+`</span>`).join('') : ''}
-        ${tool.openSource ? `<span class="td-stat-chip td-oss-chip">Open Source</span>` : ''}      </div>
-
-      ${tool.description ? `
-      <div class="td-section">
-        <span class="td-section-label">About</span>
-        <p class="td-description">${escapeHtml(tool.description)}</p>
-      </div>` : ''}
-
-      ${allTags.length ? `
-      <div class="td-section">
-        <span class="td-section-label">Tags &amp; Capabilities</span>
-        <div class="td-tags-wrap">
-          ${tool.pricing && !/^unknown$/i.test(String(tool.pricing)) ? `<span class="td-tag pricing-${escapeHtml(tool.pricing)}">${escapeHtml(tool.pricing)}</span>` : ''}
-          ${allTags.map(t => `<span class="td-tag">${escapeHtml(t)}</span>`).join('')}
+    if (els.tdBody) {
+      els.tdBody.innerHTML = `
+        <div class="td-actions">
+          <a class="td-visit-btn" href="${escapeHtml(tool.url || '#')}" target="_blank" rel="noopener">Visit website ↗</a>
+          <button class="td-fav-btn ${isFav ? 'active' : ''}" id="tdFavBtn" type="button"
+            aria-label="${isFav ? 'Remove from saved' : 'Save tool'}"></button>
         </div>
-      </div>` : ''}
 
-      ${(tool.keyFeatures||[]).length ? `
-      <div class="td-section">
-        <span class="td-section-label">Key Features</span>
-        <div class="td-tags-wrap">
-          ${(tool.keyFeatures||[]).map(f=>`<span class="td-tag td-feature-tag">${escapeHtml(f)}</span>`).join('')}
-        </div>
-      </div>` : ''}
+        <div class="td-stats-bar">
+          ${tool.pricing && !/^unknown$/i.test(String(tool.pricing)) ? `<span class="td-stat-chip">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M6 4v2.5L7.5 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            ${escapeHtml(tool.pricing)}
+          </span>` : ''}
+          ${cats.length ? `<span class="td-stat-chip">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="2" width="10" height="2" rx="1" fill="currentColor"/><rect x="1" y="5" width="7" height="2" rx="1" fill="currentColor"/><rect x="1" y="8" width="8" height="2" rx="1" fill="currentColor"/></svg>
+            ${cats.length} ${cats.length === 1 ? 'category' : 'categories'}
+          </span>` : ''}
+          ${allTags.length ? `<span class="td-stat-chip">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M1.5 6.5 5 10l5.5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            ${allTags.length} tag${allTags.length !== 1 ? 's' : ''}
+          </span>` : ''}
+          ${domain ? `<span class="td-stat-chip">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M6 1c0 0-2 2-2 5s2 5 2 5M6 1c0 0 2 2 2 5s-2 5-2 5M1 6h10" stroke="currentColor" stroke-width="1.2"/></svg>
+            ${escapeHtml(domain)}
+          </span>` : ''}
+          ${(tool.platforms||[]).length ? (tool.platforms||[]).map(p=>`<span class="td-stat-chip">`+escapeHtml(p)+`</span>`).join('') : ''}
+          ${tool.openSource ? `<span class="td-stat-chip td-oss-chip">Open Source</span>` : ''}      </div>
 
-      ${(tool.integrations||[]).length ? `
-      <div class="td-section">
-        <span class="td-section-label">Integrations</span>
-        <div class="td-tags-wrap">
-          ${(tool.integrations||[]).map(i=>`<span class="td-tag td-integration-tag">${escapeHtml(i)}</span>`).join('')}
-        </div>
-      </div>` : ''}
+        ${tool.description ? `
+        <div class="td-section">
+          <span class="td-section-label">About</span>
+          <p class="td-description">${escapeHtml(tool.description)}</p>
+        </div>` : ''}
 
-      ${renderToolDecisionGuide(tool, similar)}
+        ${allTags.length ? `
+        <div class="td-section">
+          <span class="td-section-label">Tags &amp; Capabilities</span>
+          <div class="td-tags-wrap">
+            ${tool.pricing && !/^unknown$/i.test(String(tool.pricing)) ? `<span class="td-tag pricing-${escapeHtml(tool.pricing)}">${escapeHtml(tool.pricing)}</span>` : ''}
+            ${allTags.map(t => `<span class="td-tag">${escapeHtml(t)}</span>`).join('')}
+          </div>
+        </div>` : ''}
 
-      ${cats.length ? `
-      <div class="td-section">
-        <span class="td-section-label">Appears in ${cats.length} ${cats.length === 1 ? 'category' : 'categories'}</span>
-        <div class="td-categories">
-          ${cats.map(c => `
-            <div class="td-category-row">
-              <span class="td-category-name">${escapeHtml(c.category)}</span>
-              ${c.group && c.group !== c.category ? `<span class="td-group-badge">· ${escapeHtml(c.group)}</span>` : ''}
-            </div>
-          `).join('')}
-        </div>
-      </div>` : ''}
+        ${(tool.keyFeatures||[]).length ? `
+        <div class="td-section">
+          <span class="td-section-label">Key Features</span>
+          <div class="td-tags-wrap">
+            ${(tool.keyFeatures||[]).map(f=>`<span class="td-tag td-feature-tag">${escapeHtml(f)}</span>`).join('')}
+          </div>
+        </div>` : ''}
 
-      ${similar.length ? `
-      <div class="td-section">
-        <span class="td-section-label">Similar tools (${similar.length})</span>
-        <div class="td-similar-grid">
-          ${similar.map(s => {
-            let simHost = s.domain || '';
-            if(!simHost && s.url){ try{ simHost = new URL(s.url).hostname; }catch(e){} }
-            const simFav = encodeURIComponent(simHost);
-            const simFallback = `https://icons.duckduckgo.com/ip3/${simFav}.ico`;
-            return `
-            <button class="td-similar-card" type="button" data-sim-id="${escapeHtml(s.id)}">
-              <img class="td-sim-favicon" width="20" height="20" src="https://www.google.com/s2/favicons?domain=${simFav}&sz=32" alt=""
-                data-fallback="${simFallback}">
-              <span class="td-sim-info">
-                <span class="td-sim-name">${escapeHtml(s.name)}</span>
-                ${s.pricing && !/^unknown$/i.test(String(s.pricing)) ? `<span class="td-sim-pricing">${escapeHtml(s.pricing)}</span>` : ''}
-              </span>
-            </button>`;
-          }).join('')}
-        </div>
-      </div>` : ''}
-    `;
+        ${(tool.integrations||[]).length ? `
+        <div class="td-section">
+          <span class="td-section-label">Integrations</span>
+          <div class="td-tags-wrap">
+            ${(tool.integrations||[]).map(i=>`<span class="td-tag td-integration-tag">${escapeHtml(i)}</span>`).join('')}
+          </div>
+        </div>` : ''}
 
-    document.getElementById('tools-tdFavBtn')?.addEventListener('click', () => {
-      if(favorites.has(tool.id)) favorites.delete(tool.id); else favorites.add(tool.id);
-      saveFavorites(favorites);
-      renderContent();
-      openToolDetail(tool);
-    });
+        ${renderToolDecisionGuide(tool, similar)}
 
-    els.tdBody.querySelectorAll('[data-sim-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const simTool = tools.find(t => t.id === btn.dataset.simId);
-        if(simTool) openToolDetail(simTool);
+        ${cats.length ? `
+        <div class="td-section">
+          <span class="td-section-label">Appears in ${cats.length} ${cats.length === 1 ? 'category' : 'categories'}</span>
+          <div class="td-categories">
+            ${cats.map(c => `
+              <div class="td-category-row">
+                <span class="td-category-name">${escapeHtml(c.category)}</span>
+                ${c.group && c.group !== c.category ? `<span class="td-group-badge">· ${escapeHtml(c.group)}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
+
+        ${similar.length ? `
+        <div class="td-section">
+          <span class="td-section-label">Similar tools (${similar.length})</span>
+          <div class="td-similar-grid">
+            ${similar.map(s => {
+              let simHost = s.domain || '';
+              if(!simHost && s.url){ try{ simHost = new URL(s.url).hostname; }catch(e){} }
+              const simFav = encodeURIComponent(simHost);
+              const simFallback = `https://icons.duckduckgo.com/ip3/${simFav}.ico`;
+              return `
+              <button class="td-similar-card" type="button" data-sim-id="${escapeHtml(s.id)}">
+                <img class="td-sim-favicon" width="20" height="20" src="https://www.google.com/s2/favicons?domain=${simFav}&sz=32" alt=""
+                  data-fallback="${simFallback}">
+                <span class="td-sim-info">
+                  <span class="td-sim-name">${escapeHtml(s.name)}</span>
+                  ${s.pricing && !/^unknown$/i.test(String(s.pricing)) ? `<span class="td-sim-pricing">${escapeHtml(s.pricing)}</span>` : ''}
+                </span>
+              </button>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+      `;
+
+      document.getElementById('tools-tdFavBtn')?.addEventListener('click', () => {
+        if(favorites.has(tool.id)) favorites.delete(tool.id); else favorites.add(tool.id);
+        saveFavorites(favorites);
+        renderContent();
+        openToolDetail(tool);
       });
-    });
+
+      els.tdBody.querySelectorAll('[data-sim-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const simTool = tools.find(t => t.id === btn.dataset.simId);
+          if(simTool) openToolDetail(simTool);
+        });
+      });
+    }
 
     addRecent(tool.id);
     if(!opts.fromPopstate){
@@ -800,12 +812,14 @@ window.initTools = async function() {
         fallbackCopy(url, done);
       }
     });
-    const actionsDiv = els.tdBody.querySelector('.td-actions');
+    const actionsDiv = els.tdBody ? els.tdBody.querySelector('.td-actions') : null;
     if(actionsDiv) actionsDiv.appendChild(shareBtn);
 
-    els.toolDetailModal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-    els.tdClose.focus();
+    if (els.toolDetailModal) {
+      els.toolDetailModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    if (els.tdClose) els.tdClose.focus();
   }
 
   function closeToolDetail(opts){

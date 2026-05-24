@@ -58,7 +58,9 @@
       avatar.style.boxShadow = '0 4px 12px rgba(15,23,42,.08)';
       avatar.style.border = '1px solid rgba(255,255,255,0.15)';
       
-      img.parentNode.replaceChild(avatar, img);
+      if (img.parentNode) {
+        img.parentNode.replaceChild(avatar, img);
+      }
     }
   }, true);
 
@@ -111,7 +113,11 @@
   async function activate(section, push) {
     if (!sections[section]) section = 'tools';
 
+    // If both sections are missing from DOM, the component has unmounted. Abort early.
+    if (!sections.tools && !sections.tech) return;
+
     tabsList.forEach(t => {
+      if (!t) return;
       const on = t.dataset.target === section;
       t.classList.toggle('active', on);
       t.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -119,13 +125,15 @@
     });
 
     Object.keys(sections).forEach(k => {
+      const el = sections[k];
+      if (!el) return;
       const on = k === section;
-      sections[k].classList.toggle('active', on);
-      if (on) sections[k].removeAttribute('hidden'); else sections[k].setAttribute('hidden', '');
+      el.classList.toggle('active', on);
+      if (on) el.removeAttribute('hidden'); else el.setAttribute('hidden', '');
     });
 
     if (!loaded[section]) {
-      loading.classList.remove('hidden');
+      if (loading) loading.classList.remove('hidden');
       try {
         if (section === 'tech' && window.initTech) {
           await window.initTech();
@@ -137,7 +145,7 @@
       } catch (e) {
         console.error('Error loading section:', e);
       } finally {
-        loading.classList.add('hidden');
+        if (loading) loading.classList.add('hidden');
       }
     }
     updateCount(section);

@@ -266,9 +266,9 @@ body { margin: 0; padding: 0; background: #fafafa; font-family: 'Inter', system-
 .hub-topline {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) auto auto minmax(190px, 1fr);
+  grid-template-columns: 1fr auto auto minmax(max-content, 1fr);
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 .hub-brand { min-width: 0; }
 .hub-brand-copy { min-width: 0; }
@@ -289,7 +289,7 @@ body { margin: 0; padding: 0; background: #fafafa; font-family: 'Inter', system-
 }
 .hub-main { height: calc(100vh - 76px); }
 
-@media (max-width: 1240px) {
+@media (max-width: 1340px) {
   .hub-topline {
     grid-template-columns: minmax(190px, 1fr) auto auto auto;
   }
