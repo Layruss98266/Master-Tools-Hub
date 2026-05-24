@@ -1195,3 +1195,61 @@ body.hub-active .compare-btn {
 body.hub-active .tab-count { background: rgba(167,139,250,.16); color: #c4b5fd; }
 body.hub-active .hub-nav-count { background: rgba(255,255,255,.12); color: #e0d8ff; }
 body.hub-active .hub-nav-btn.active .hub-nav-count { background: rgba(255,255,255,.24); color: #fff; }
+
+/* =====================================================================
+   DARK THEME OVERRIDE (part 4) - the AI Tools card internals and count
+   badges. These use the .tool-* class set (not .card-*), so they were
+   still light/blue: titles, domain chips, tags, pricing pills, stars,
+   section counts, plus a few stray light surfaces.
+   ===================================================================== */
+
+/* Card title */
+body.hub-active .tool-name { color: #d8d0ff; }
+body.hub-active .tool-name:hover { color: #fff; }
+body.hub-active .tool-card:hover .tool-name::after { color: #a78bfa; }
+
+/* Favicon chip + domain chip */
+body.hub-active .tool-favicon { background: #1a1a28; border-color: var(--border); box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+body.hub-active .tool-domain { background: #161626; color: #9a9ab2; border-color: var(--border); }
+
+/* Card tags */
+body.hub-active .tool-tag { background: rgba(255,255,255,.05); color: #b6b6cf; border-color: var(--border); }
+
+/* Favorite / star button */
+body.hub-active .favorite-btn { background: #161626; border-color: var(--border-strong); color: #9a9ab2; }
+body.hub-active .favorite-btn:hover { background: rgba(139,92,246,.16); color: #c4b5fd; border-color: var(--accent-border); }
+body.hub-active .favorite-btn.active { background: rgba(249,115,22,.16); color: #fdba74; border-color: rgba(249,115,22,.4); }
+
+/* Pricing pills */
+body.hub-active [class*="pricing-"] { background: rgba(255,255,255,.05); color: #b6b6cf; border-color: var(--border); }
+body.hub-active .pricing-Free { background: rgba(16,185,129,.16); color: #6ee7b7; border-color: rgba(16,185,129,.35); }
+body.hub-active .pricing-Paid { background: rgba(249,115,22,.16); color: #fdba74; border-color: rgba(249,115,22,.35); }
+body.hub-active .pricing-Freemium { background: rgba(99,102,241,.18); color: #c4b5fd; border-color: rgba(99,102,241,.4); }
+
+/* Count badges */
+body.hub-active .section-count,
+body.hub-active .group-count { background: rgba(167,139,250,.16); color: #c4b5fd; border-color: rgba(167,139,250,.35); }
+
+/* Platform / OSS badges */
+body.hub-active .platform-tag { background: rgba(99,102,241,.18); color: #c4b5fd; border-color: rgba(99,102,241,.4); }
+body.hub-active .oss-badge { background: rgba(16,185,129,.16); color: #6ee7b7; border-color: rgba(16,185,129,.35); }
+
+/* Sidebar field labels + filter title */
+body.hub-active .field-label { color: #9a9ab2; }
+body.hub-active .filter-title-block { color: #e9e9f5; }
+
+/* Embedded search inputs, empty states, export button, misc */
+body.hub-active .search { background: #0e0e18; border-color: var(--border-strong); color: #e9e9f5; }
+body.hub-active .search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167,139,250,.2); }
+body.hub-active .back-link { background: #161626; border-color: var(--border-strong); color: #9a9ab2; }
+body.hub-active .back-link:hover { background: rgba(139,92,246,.16); color: #c4b5fd; border-color: var(--accent-border); }
+body.hub-active .no-results,
+body.hub-active .category-empty { background: #11111d; border-color: var(--border); color: #9a9ab2; }
+body.hub-active #tools-exportCsv,
+body.hub-active #tech-exportCsv { background: #161626; border-color: var(--border-strong); color: #b6b6cf; }
+body.hub-active #tools-exportCsv:hover,
+body.hub-active #tech-exportCsv:hover { background: rgba(139,92,246,.16); border-color: var(--accent-border); color: #c4b5fd; }
+body.hub-active .clear-search:hover { background: rgba(255,255,255,.06); color: #e9e9f5; }
+
+/* Compare-selection checkboxes on cards */
+body.hub-active input[type="checkbox"] { accent-color: #7c3aed; }
