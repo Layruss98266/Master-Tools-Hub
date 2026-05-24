@@ -1147,3 +1147,51 @@ body.hub-active .choice-editor { background: rgba(249,115,22,.16); color: #fdba7
 /* Detail-drawer guide section */
 body.hub-active .td-guide-section { background: #0e0e18; border-color: var(--border); }
 body.hub-active .td-guide-card span { color: #9a9ab2; }
+
+/* =====================================================================
+   DARK THEME OVERRIDE (part 3) - shift the hub accent from blue to the
+   marketing palette (violet #8b5cf6 / indigo #6366f1 / cyan #22d3ee).
+   ===================================================================== */
+
+/* Header brand mark + active tab */
+body.hub-active .hub-brand-mark {
+  background: linear-gradient(135deg, #a78bfa, #6366f1 55%, #22d3ee) !important;
+  box-shadow: 0 10px 24px rgba(124,58,237,.4), inset 0 1px 0 rgba(255,255,255,.28) !important;
+}
+body.hub-active .hub-nav-btn.active {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+  box-shadow: 0 10px 24px rgba(124,58,237,.4), inset 0 1px 0 rgba(255,255,255,.2) !important;
+}
+body.hub-active .hub-nav-btn:hover { background: rgba(139,92,246,.18); color: #fff; }
+body.hub-active .hub-search-trigger:hover {
+  background: rgba(139,92,246,.22); border-color: rgba(167,139,250,.5); color: #fff;
+}
+
+/* Search input focus ring -> violet */
+body.hub-active .hub-search input:focus {
+  border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,.25);
+}
+
+/* Card titles + links -> violet-tinted */
+body.hub-active .card-name { color: #d8d0ff; }
+body.hub-active .card-name:hover { color: #fff; }
+
+/* Back-to-top + any blue CTA buttons -> violet/indigo */
+body.hub-active .back-to-top {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  box-shadow: 0 8px 24px rgba(124,58,237,.4);
+}
+body.hub-active .back-to-top:hover { background: linear-gradient(135deg, #6d28d9, #4338ca); }
+
+/* Compare action button (primary) -> violet/cyan to match marketing */
+body.hub-active .compare-btn,
+body.hub-active .modal .td-fav-btn.active { }
+body.hub-active .compare-btn {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border: none; color: #fff; box-shadow: 0 8px 20px rgba(124,58,237,.35);
+}
+
+/* "Popular" semantic accents nudged toward the palette (kept distinct from violet) */
+body.hub-active .tab-count { background: rgba(167,139,250,.16); color: #c4b5fd; }
+body.hub-active .hub-nav-count { background: rgba(255,255,255,.12); color: #e0d8ff; }
+body.hub-active .hub-nav-btn.active .hub-nav-count { background: rgba(255,255,255,.24); color: #fff; }
