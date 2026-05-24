@@ -1083,3 +1083,67 @@ body.hub-active .directory-footer { background:#0a0a14; border-top-color:var(--b
 body.hub-active .directory-footer-brand strong { color:#fff; }
 body.hub-active .footer-action { background:#161626; border-color:var(--border-strong); color:#b6b6cf; }
 body.hub-active .footer-action:hover { background:rgba(139,92,246,.14); border-color:var(--accent-border); color:#c4b5fd; }
+
+/* =====================================================================
+   DARK THEME OVERRIDE (part 2) - the recommended-views panel, browse
+   toolbar, preset/filter chips, selects, and badges that were still light.
+   ===================================================================== */
+
+/* Panels */
+body.hub-active .recommended-panel,
+body.hub-active .category-filter-panel {
+  background: linear-gradient(180deg,#101019,#0c0c15);
+  border-color: var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+body.hub-active .recommended-head { color: #9a9ab2; }
+body.hub-active .recommended-head strong,
+body.hub-active .filter-title-block strong { color: #f0f0f8; }
+body.hub-active .filter-kicker,
+body.hub-active .compact-select-label { color: #8a8aa3; }
+
+/* Preset chips + filter buttons + related chips */
+body.hub-active .preset-chip,
+body.hub-active .more-filters-toggle,
+body.hub-active .filter-clear-btn,
+body.hub-active .group-chip {
+  background: #161626; border-color: var(--border-strong); color: #c2c2d6;
+}
+body.hub-active .preset-chip:hover,
+body.hub-active .more-filters-toggle:hover,
+body.hub-active .filter-clear-btn:hover,
+body.hub-active .group-chip:hover {
+  background: rgba(139,92,246,.16); border-color: var(--accent-border); color: #c4b5fd;
+}
+body.hub-active .preset-chip.active,
+body.hub-active .group-chip.active {
+  background: linear-gradient(135deg,#7c3aed,#4f46e5); border-color: transparent; color: #fff;
+  box-shadow: 0 6px 16px rgba(124,58,237,.35);
+}
+
+/* Selects in the browse toolbar */
+body.hub-active .compact-select,
+body.hub-active .advanced-filter-panel select {
+  background: #0e0e18; border-color: var(--border-strong); color: #e9e9f5;
+}
+body.hub-active .compact-select:focus,
+body.hub-active .advanced-filter-panel select:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167,139,250,.2);
+}
+body.hub-active .group-filter-row,
+body.hub-active .advanced-filter-panel { border-top-color: var(--border); }
+body.hub-active .advanced-filter-panel label { color: #9a9ab2; }
+
+/* Card "Tool · domain" subtitle + description readability */
+body.hub-active .tool-type-inline,
+body.hub-active .card-type-inline { color: #8f8fa8 !important; }
+body.hub-active .card-desc { color: #b3b3cc; }
+
+/* Choice badges (Developer Pick / Popular / Editor) */
+body.hub-active .choice-dev { background: rgba(16,185,129,.16); color: #6ee7b7; border-color: rgba(16,185,129,.35); }
+body.hub-active .choice-popular { background: rgba(59,130,246,.16); color: #93c5fd; border-color: rgba(59,130,246,.35); }
+body.hub-active .choice-editor { background: rgba(249,115,22,.16); color: #fdba74; border-color: rgba(249,115,22,.35); }
+
+/* Detail-drawer guide section */
+body.hub-active .td-guide-section { background: #0e0e18; border-color: var(--border); }
+body.hub-active .td-guide-card span { color: #9a9ab2; }
