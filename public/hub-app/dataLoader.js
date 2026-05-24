@@ -1,5 +1,8 @@
 
-const DataLoader = (function() {
+// Assigned to window with a guard (no top-level `const`) so the script is safe
+// to execute more than once. It is injected as a classic script on every /hub
+// mount, and React StrictMode double-mounts in dev.
+window.DataLoader = window.DataLoader || (function() {
   const cache = {};
 
   async function loadData(scriptUrl, globalVarName) {
@@ -39,5 +42,4 @@ const DataLoader = (function() {
 
   return { loadData };
 })();
-window.DataLoader = DataLoader;
 
