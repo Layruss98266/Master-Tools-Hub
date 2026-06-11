@@ -91,6 +91,8 @@ window.initTools = async function() {
   let searchQuery = '';
   let selectedCompare = new Set();
   let lastToolFocus = null;
+  let currentOpenTool = null;
+  let activeAlternatives = [];
   let currentDensity = 'default';
   try { currentDensity = localStorage.getItem(DENSITY_KEY) || 'default'; } catch(e) {}
 
@@ -481,7 +483,12 @@ window.initTools = async function() {
     `;
   }
 
-  function renderContent(){
+  let visibleCount = 80;
+
+  function renderContent(preserveCount){
+    if (!preserveCount) {
+      visibleCount = 80;
+    }
     const baseTools = tools.filter(tool => toolInTab(tool, activeTab));
     if(activeTab !== 'tab-0' && activeGroup !== 'all') {
       const validGroups = new Set(getCurrentGroups(baseTools).map(x => x[0]));
@@ -506,21 +513,53 @@ window.initTools = async function() {
       return;
     }
 
+    const slicedTools = renderedTools.slice(0, visibleCount);
+
     const groups = new Map();
-    renderedTools.forEach(tool => {
+    slicedTools.forEach(tool => {
       const group = getPrimaryGroup(tool, activeTab);
       if(!groups.has(group)) groups.set(group, []);
       groups.get(group).push(tool);
     });
 
-    els.content.innerHTML = controlsHtml + [...groups.entries()].map(([group, groupTools]) => `
+    const densityCls = currentDensity !== 'default' ? ' density-' + currentDensity : '';
+    let html = controlsHtml + [...groups.entries()].map(([group, groupTools]) => `
       <section class="group-block">
         <h3 class="group-heading">${escapeHtml(group)} <span class="group-count">${groupTools.length}</span></h3>
-        <div class="tool-grid">
+        <div class="tool-grid${densityCls}">
           ${groupTools.map(renderCard).join('')}
         </div>
       </section>
     `).join('');
+
+    const hasMore = renderedTools.length > visibleCount;
+    if (hasMore) {
+      html += `
+        <div id="tools-progressive-sentinel" class="progressive-sentinel">
+          <div class="sentinel-spinner"></div>
+          <span>Loading more tools...</span>
+        </div>
+      `;
+    }
+
+    els.content.innerHTML = html;
+
+    if (hasMore) {
+      const sentinel = document.getElementById('tools-progressive-sentinel');
+      if (sentinel) {
+        const observer = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting) {
+            observer.disconnect();
+            visibleCount += 80;
+            renderContent(true);
+          }
+        }, {
+          root: null,
+          rootMargin: '200px'
+        });
+        observer.observe(sentinel);
+      }
+    }
   }
 
   function updateCompareBar(){
@@ -540,24 +579,113 @@ window.initTools = async function() {
       alert('Select at least 2 tools to compare.');
       return;
     }
+
+    // Dynamic Matrix Insights calculations
+    let sortedByScore = [...selected].sort((a, b) => (b.final_rank_score || 0) - (a.final_rank_score || 0));
+    let highestScored = sortedByScore[0];
+    
+    let sortedByTags = [...selected].sort((a, b) => b.tags.length - a.tags.length);
+    let mostFeatured = sortedByTags[0];
+    
+    let freeOptions = selected.filter(t => /free|freemium/i.test(t.pricing || ''));
+    let budgetPick = freeOptions.length ? freeOptions[0] : null;
+
+    // Render Matrix HTML
     els.compareModalContent.innerHTML = `
+      <div class="compare-modal-header">
+        <button class="action-btn compare-export-btn" id="compare-export-matrix-btn">⬇ Export Matrix</button>
+      </div>
       <table class="compare-table">
         <thead><tr><th>Field</th>${selected.map(t => `<th>${escapeHtml(t.name)}</th>`).join('')}</tr></thead>
         <tbody>
           ${[
-            {label:'Website',raw:true,vals:selected.map(t=>'<a href="'+escapeHtml(t.url)+'\" target="_blank\" rel="noopener">'+escapeHtml(t.domain||t.url)+'</a>')},
-            {label:'Pricing',vals:selected.map(t=>escapeHtml(t.pricing))},
-            {label:'Description',vals:selected.map(t=>escapeHtml(t.description))},
-            {label:'Tags',vals:selected.map(t=>escapeHtml(t.tags.join(', ')))},
-            {label:'Categories',vals:selected.map(t=>escapeHtml(getToolCategories(t).filter(c=>c!=='Master List').join(', ')))}
-          ].map(row=>{
-            const allSame=row.vals.every((v,_,a)=>v===a[0]);
-            const cls=allSame?'cell-match':'cell-diff';
-            return `<tr><th>${row.label}</th>${row.vals.map(v=>`<td class="${cls}">`+v+`</td>`).join('')}</tr>`;
+            {
+              label: 'Website',
+              raw: true,
+              vals: selected.map(t => `<a href="${escapeHtml(t.url || '#')}" target="_blank" rel="noopener">${escapeHtml(t.domain || 'Visit Site ↗')}</a>`)
+            },
+            {
+              label: 'Pricing',
+              vals: selected.map(t => escapeHtml(t.pricing || 'Unknown'))
+            },
+            {
+              label: 'Popularity Score',
+              raw: true,
+              vals: selected.map(t => {
+                const score = t.final_rank_score || 0;
+                return `
+                  <div class="compare-score-wrapper">
+                    <div class="compare-score-bar-bg">
+                      <div class="compare-score-bar-fill" style="width: ${score}%"></div>
+                    </div>
+                    <span class="compare-score-text">${score}%</span>
+                  </div>
+                `;
+              })
+            },
+            {
+              label: 'Description',
+              vals: selected.map(t => escapeHtml(t.description || ''))
+            },
+            {
+              label: 'Unique Tags',
+              raw: true,
+              vals: selected.map(t => {
+                return `<div class="compare-tags-cell">` + t.tags.map(tag => {
+                  const isUnique = selected.every(other => other.id === t.id || !other.tags.includes(tag));
+                  const cls = isUnique ? 'tag compare-tag-unique' : 'tag';
+                  return `<span class="${cls}">${escapeHtml(tag)}</span>`;
+                }).join('') + `</div>`;
+              })
+            },
+            {
+              label: 'Categories',
+              vals: selected.map(t => escapeHtml(getToolCategories(t).filter(c => c !== 'Master List').join(', ')))
+            }
+          ].map(row => {
+            const allSame = row.raw ? false : row.vals.every((v, _, a) => v === a[0]);
+            const cls = allSame ? 'cell-match' : 'cell-diff';
+            return `<tr><th>${row.label}</th>${row.vals.map(v => `<td class="${cls}">${v}</td>`).join('')}</tr>`;
           }).join('')}
         </tbody>
       </table>
+
+      <div class="compare-insights">
+        <h4 class="compare-insights-title">✨ Matrix Insights</h4>
+        <div class="compare-insights-grid">
+          <div class="compare-insight-card">
+            <strong>🏆 Popularity Leader</strong>
+            <span><strong>${escapeHtml(highestScored.name)}</strong> holds the highest rank score of <strong>${highestScored.final_rank_score || 0}%</strong> in our database.</span>
+          </div>
+          <div class="compare-insight-card">
+            <strong>🚀 Feature Leader</strong>
+            <span><strong>${escapeHtml(mostFeatured.name)}</strong> offers the most diverse capability set with <strong>${mostFeatured.tags.length}</strong> specialized feature tags.</span>
+          </div>
+          ${budgetPick ? `
+          <div class="compare-insight-card">
+            <strong>💰 Budget Winner</strong>
+            <span><strong>${escapeHtml(budgetPick.name)}</strong> offers a <strong>${escapeHtml(budgetPick.pricing)}</strong> pricing structure, reducing cost overhead.</span>
+          </div>
+          ` : ''}
+        </div>
+      </div>
     `;
+
+    // Bind CSV Export Action
+    document.getElementById('compare-export-matrix-btn')?.addEventListener('click', () => {
+      const cols = ['Field', ...selected.map(t => t.name)];
+      const rows = [
+        cols,
+        ['URL', ...selected.map(t => t.url || '')],
+        ['Pricing', ...selected.map(t => t.pricing || '')],
+        ['Description', ...selected.map(t => t.description || '')],
+        ['Tags', ...selected.map(t => t.tags.join('|'))],
+        ['Popularity Score', ...selected.map(t => (t.final_rank_score || 0) + '%')],
+        ['Categories', ...selected.map(t => getToolCategories(t).filter(c=>c!=='Master List').join('|'))]
+      ];
+      exportToolRows(rows, `comparison-${selected.map(t => t.id).join('-')}.csv`);
+    });
+
     els.compareModal.classList.add('active');
   }
 
@@ -640,12 +768,37 @@ window.initTools = async function() {
 
   function openToolDetail(tool, opts){
     opts = opts || {};
+    currentOpenTool = tool;
     if(!opts.preserveFocus) lastToolFocus = document.activeElement;
     const domain = tool.domain || '';
     let faviconHost = domain;
     if(!faviconHost && tool.url){
       try{ faviconHost = new URL(tool.url).hostname; }catch(e){ faviconHost = ''; }
     }
+
+    // Inject SEO JSON-LD Metadata dynamically
+    let jsonLdScript = document.getElementById('tool-jsonld-metadata');
+    if (!jsonLdScript) {
+      jsonLdScript = document.createElement('script');
+      jsonLdScript.id = 'tool-jsonld-metadata';
+      jsonLdScript.type = 'application/ld+json';
+      document.head.appendChild(jsonLdScript);
+    }
+    const itemType = getItemType(tool).toLowerCase();
+    const seoMetadata = {
+      "@context": "https://schema.org",
+      "@type": itemType === 'website' ? "WebSite" : "SoftwareApplication",
+      "name": tool.name,
+      ...(tool.url && { "url": tool.url }),
+      "description": tool.description || tool.tagline || "",
+      "applicationCategory": itemType === 'website' ? undefined : "DeveloperApplication",
+      "operatingSystem": itemType === 'website' ? undefined : "Windows, macOS, Linux",
+      "offers": tool.pricing ? {
+        "@type": "Offer",
+        "category": tool.pricing
+      } : undefined
+    };
+    jsonLdScript.textContent = JSON.stringify(seoMetadata, null, 2);
 
     // Header
     if (els.tdFavicon) {
@@ -672,15 +825,23 @@ window.initTools = async function() {
 
     const allTags = [...new Set(tool.tags)].filter(t => t && !/^unknown$/i.test(String(t)));
     const isFav = favorites.has(tool.id);
+    const isCompared = selectedCompare.has(tool.id);
 
     const altIds = tool.alternativeIds && tool.alternativeIds.length ? tool.alternativeIds : [];
     const altTools = altIds.map(id => tools.find(t => t.id === id)).filter(Boolean).slice(0,6);
     const similar = altTools.length ? altTools : getSimilarTools(tool, 6);
+    activeAlternatives = similar;
+    if (!opts.preserveNav) {
+      navigationQueue = similar;
+      navigationIndex = -1;
+    }
 
     if (els.tdBody) {
       els.tdBody.innerHTML = `
         <div class="td-actions">
           <a class="td-visit-btn" href="${escapeHtml(tool.url || '#')}" target="_blank" rel="noopener">Visit website ↗</a>
+          <button class="td-compare-toggle-btn ${isCompared ? 'active' : ''}" id="tdCompareBtn" type="button"
+            title="Add to compare (C)" aria-label="Toggle compare"></button>
           <button class="td-fav-btn ${isFav ? 'active' : ''}" id="tdFavBtn" type="button"
             aria-label="${isFav ? 'Remove from saved' : 'Save tool'}"></button>
         </div>
@@ -736,6 +897,7 @@ window.initTools = async function() {
           </div>
         </div>` : ''}
 
+<<<<<<< Updated upstream:public/hub-app/tools.js
         ${renderToolDecisionGuide(tool, similar)}
 
         ${cats.length ? `
@@ -774,9 +936,16 @@ window.initTools = async function() {
         </div>` : ''}
       `;
 
-      document.getElementById('tools-tdFavBtn')?.addEventListener('click', () => {
+      document.getElementById('tdFavBtn')?.addEventListener('click', () => {
         if(favorites.has(tool.id)) favorites.delete(tool.id); else favorites.add(tool.id);
         saveFavorites(favorites);
+        renderContent();
+        openToolDetail(tool);
+      });
+
+      document.getElementById('tdCompareBtn')?.addEventListener('click', () => {
+        if(selectedCompare.has(tool.id)) selectedCompare.delete(tool.id); else selectedCompare.add(tool.id);
+        updateCompareBar();
         renderContent();
         openToolDetail(tool);
       });
@@ -824,9 +993,15 @@ window.initTools = async function() {
 
   function closeToolDetail(opts){
     opts = opts || {};
+    currentOpenTool = null;
     const wasOpen = els.toolDetailModal.classList.contains('active');
     els.toolDetailModal.classList.remove('active');
     document.body.style.overflow = '';
+
+    // Clean up dynamic JSON-LD metadata
+    const jsonLdScript = document.getElementById('tool-jsonld-metadata');
+    if (jsonLdScript) jsonLdScript.remove();
+
     if(!opts.fromPopstate){
       const sp = new URLSearchParams(location.search);
       sp.delete('tool');
@@ -935,7 +1110,20 @@ window.initTools = async function() {
   if(els.exportSaved) els.exportSaved.addEventListener('click', exportSaved);
   els.exportCsv.addEventListener('click', exportCsv);
 
+  let navigationQueue = [];
+  let navigationIndex = -1;
+
+  function navigateAlternatives(direction) {
+    if (!navigationQueue.length) return;
+    navigationIndex = (navigationIndex + direction + navigationQueue.length) % navigationQueue.length;
+    const nextTool = navigationQueue[navigationIndex];
+    if (nextTool) openToolDetail(nextTool, { preserveNav: true });
+  }
+
   document.addEventListener('keydown', e => {
+    const activeEl = document.activeElement;
+    const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+
     // Ctrl/Cmd+K now focuses the global nav search instead of the old palette
     if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
       const navSearch = document.getElementById('hub-global-search');
@@ -944,6 +1132,26 @@ window.initTools = async function() {
     if(e.key === 'Escape') {
       els.compareModal.classList.remove('active');
       closeToolDetail();
+    }
+
+    // Drawer hotkeys (only if drawer is active and user is not typing in an input)
+    if (currentOpenTool && !isInput) {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        navigateAlternatives(1);
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        navigateAlternatives(-1);
+      }
+      if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        document.getElementById('tdFavBtn')?.click();
+      }
+      if (e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        document.getElementById('tdCompareBtn')?.click();
+      }
     }
   });
 

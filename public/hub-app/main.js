@@ -772,6 +772,75 @@
     });
   }
 
+  // Dynamic HSL Theme Management
+  const themeToggleBtn = document.getElementById('hub-theme-toggle-btn');
+  const sunIcon = themeToggleBtn?.querySelector('.theme-icon-sun');
+  const moonIcon = themeToggleBtn?.querySelector('.theme-icon-moon');
+
+  function applyTheme(theme) {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark-theme');
+      if (sunIcon) sunIcon.style.display = 'none';
+      if (moonIcon) moonIcon.style.display = 'inline-block';
+    } else {
+      document.documentElement.classList.remove('dark-theme');
+      if (sunIcon) sunIcon.style.display = 'inline-block';
+      if (moonIcon) moonIcon.style.display = 'none';
+    }
+    try { localStorage.setItem('master_hub_theme', theme); } catch(e) {}
+  }
+
+  // Auto-detect theme preference
+  let currentTheme = '';
+  try { currentTheme = localStorage.getItem('master_hub_theme') || ''; } catch(e) {}
+  if (!currentTheme) {
+    currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  applyTheme(currentTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const newTheme = document.documentElement.classList.contains('dark-theme') ? 'light' : 'dark';
+      applyTheme(newTheme);
+    });
+  }
+
+  // Global Keyboard Shortcuts (Alt+1 / Alt+2 / Alt+D / '/' / '?')
+  document.addEventListener('keydown', e => {
+    const activeEl = document.activeElement;
+    const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+    
+    // Alt+1 or Alt+T -> Switch to AI Tools tab
+    if (e.altKey && (e.key === '1' || e.key.toLowerCase() === 't')) {
+      e.preventDefault();
+      activate('tools', true);
+    }
+    // Alt+2 or Alt+S -> Switch to Tech Stack tab
+    if (e.altKey && (e.key === '2' || e.key.toLowerCase() === 's')) {
+      e.preventDefault();
+      activate('tech', true);
+    }
+    // Alt+D -> Toggle Theme
+    if (e.altKey && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      if (themeToggleBtn) themeToggleBtn.click();
+    }
+    // '/' -> Focus search input
+    if (e.key === '/' && !isInput) {
+      e.preventDefault();
+      const navSearch = document.getElementById('hub-global-search');
+      if (navSearch) {
+        navSearch.focus();
+        navSearch.select();
+      }
+    }
+    // '?' -> Toggle shortcuts guide overlay
+    if (e.key === '?' && !isInput) {
+      e.preventDefault();
+      if (helpBtn) helpBtn.click();
+    }
+  });
+
   if (helpBtn && helpPop) {
     helpBtn.addEventListener('click', () => {
       const open = helpPop.hasAttribute('hidden') ? false : true;
@@ -792,6 +861,14 @@
   try { saved = localStorage.getItem('hubSection') || ''; } catch(e) {}
   if (!applyHash(location.hash, false)) {
     activate((saved === 'tools' || saved === 'tech') ? saved : 'tools', false);
+  }
+
+  // Register Stale-While-Revalidate Service Worker for offline resilience
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .catch(err => console.error('SW registration failed:', err));
+    });
   }
 })();
 
